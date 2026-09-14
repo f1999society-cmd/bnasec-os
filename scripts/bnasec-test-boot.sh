@@ -40,13 +40,13 @@ persist:*)
   fi
   (sleep 560; echo quit) | \
     $Q -accel tcg,thread=multi -no-reboot \
-       -kernel "$BASE/isodir/live/vmlinuz" \
-       -initrd "$BASE/isodir/live/initrd.img" \
+       -kernel "$BASE/isostage/vmlinuz" \
+       -initrd "$BASE/isostage/initrd.img" \
        -append "boot=live persistence username=bna hostname=bnasec console=ttyS0 bnasec.persisttest" \
        -drive if=none,id=udisk,format=raw,file=$USB \
        -device usb-storage,drive=udisk \
        -serial file:$BASE/serial-boot$N.log \
-       -monitor stdio 2>&1 | grep -E "qemu-system|reboot" | head -3 || true
+       -monitor stdio 2>&1 | grep -vE "^\(qemu\)" | grep -iE "error|fail|kvm" | head -4 || true
   echo "--- serial boot$N (persist/persisttest lines) ---"
   grep -aE "bnasec-persist|overlay|persistence|firstboot|Z|multi-user|Reached" "$BASE/serial-boot$N.log" 2>/dev/null | tail -15
   ;;
