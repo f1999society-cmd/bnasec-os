@@ -1,0 +1,3 @@
+no-manual-page [usr/bin/env.fakechroot]
+no-manual-page [usr/bin/ldd.fakechroot]
+no-manual-page [usr/sbin/chroot.fakechroot]
