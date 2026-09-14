@@ -34,10 +34,9 @@ grub-uefi)
 persist:*)
   N=${1#persist:}
   USB=$BASE/test-usb.img
-  if [ ! -f "$USB" ]; then
-    qemu-img create -f raw "$USB" 8G >/dev/null
-    dd if="$ISO" of="$USB" conv=notrunc bs=4M status=none
-  fi
+  rm -f "$USB"
+  qemu-img create -f raw "$USB" 8G >/dev/null
+  dd if="$ISO" of="$USB" conv=notrunc bs=4M status=none
   (sleep 560; echo quit) | \
     $Q -accel tcg,thread=multi -no-reboot \
        -kernel "$BASE/isostage/vmlinuz" \

@@ -1,0 +1,63 @@
+#!/bin/bash
+# BNAsec: auto-create a full-root persistence partition on the boot USB
+# using ALL remaining free space (>=2GiB), then reboot once to activate it.
+LOG=/run/bnasec-persist-setup.log
+exec > >(tee "$LOG") 2>&1
+msg() { echo "[bnasec-persist] $*"; plymouth display-message --text="$*" 2>/dev/null || true; }
+
+if findmnt -n /run/live/persistence >/dev/null 2>&1; then
+  msg "persistence already active"
+  exit 0
+fi
+
+src=$(findmnt -nro SOURCE /run/live/medium 2>/dev/null) || { msg "no boot medium found"; exit 0; }
+case "$src" in
+  /dev/sr*|/dev/loop*) msg "optical/loop medium, skipping persistence setup"; exit 0 ;;
+esac
+dev=$(lsblk -nro PKNAME "$src" 2>/dev/null | head -1)
+[ -n "$dev" ] || { msg "cannot resolve boot device"; exit 0; }
+disk="/dev/$dev"
+
+if [ -f "/sys/class/block/$dev/removable" ] && [ "$(cat "/sys/class/block/$dev/removable")" != "1" ]; then
+  msg "$disk is not removable, skipping persistence setup"
+  exit 0
+fi
+
+total=$(blockdev --getsize64 "$disk") || exit 0
+lastend=$(lsblk -bno END "$disk" 2>/dev/null | sort -n | tail -1); lastend=${lastend:-0}
+gap=$(( total - lastend ))
+if [ "$gap" -lt $((2*1024*1024*1024)) ]; then
+  msg "only $((gap/1024/1024))MiB free on $disk — need >=2GiB, skipping"
+  exit 0
+fi
+
+msg "creating $((gap/1024/1024/1024))GiB persistence partition on $disk ..."
+# compute next free partition using sfdisk dump (non-interactive, busy-safe)
+total=$(blockdev --getsize64 "$disk")
+sectors=$(( total / 512 ))
+lastend=$(lsblk -bno END "$disk" 2>/dev/null | sort -n | tail -1); lastend=${lastend:-0}
+start=$(( lastend / 512 + 1 ))
+size=$(( sectors - start - 34 ))
+sfdisk -d "$disk" > /tmp/sfd.dump 2>/dev/null || true
+pnum=$(grep -cE "^/dev/" /tmp/sfd.dump); pnum=$(( pnum + 1 ))
+printf '%s%s : start=%s, size=%s, type=8300, name="persistence"\n' "$disk" "$pnum" "$start" "$size" >> /tmp/sfd.dump
+if ! sfdisk -f "$disk" < /tmp/sfd.dump > /dev/null 2>&1; then
+  msg "partition creation failed — continuing without persistence"
+  exit 0
+fi
+partx -a "$disk" 2>/dev/null || true
+udevadm settle 2>/dev/null || true
+
+p2=""
+for cand in "$disk$pnum" "/dev/${dev}p$pnum"; do
+  [ -b "$cand" ] && p2="$cand" && break
+done
+if [ -z "$p2" ]; then
+  msg "partition node missing — continuing without persistence"
+  exit 0
+fi
+mkfs.ext4 -L persistence -q -F "$p2" || { msg "mkfs.ext4 failed"; exit 0; }
+sync
+msg "persistence ready — rebooting to activate ..."
+sleep 3
+systemctl reboot --no-wall 2>/dev/null || reboot -f

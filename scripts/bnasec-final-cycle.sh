@@ -29,6 +29,42 @@ cd "$BASE"
 python3 - <<'PYPATCH'
 p = 'rootfs/usr/local/sbin/bnasec-persist-setup'
 src = open(p).read()
+if 'sfdisk -f "$disk"' in src:
+    print('persist-setup already sfdisk-based')
+else:
+    start = src.index('sgdisk -e "$disk"')
+    end = src.index('mkfs.ext4 -L persistence')
+    new = '''# compute next free partition using sfdisk dump (non-interactive, busy-safe)
+total=$(blockdev --getsize64 "$disk")
+sectors=$(( total / 512 ))
+lastend=$(lsblk -bno END "$disk" 2>/dev/null | sort -n | tail -1); lastend=${lastend:-0}
+start=$(( lastend / 512 + 1 ))
+size=$(( sectors - start - 34 ))
+sfdisk -d "$disk" > /tmp/sfd.dump 2>/dev/null || true
+pnum=$(grep -cE "^/dev/" /tmp/sfd.dump); pnum=$(( pnum + 1 ))
+printf '%s%s : start=%s, size=%s, type=8300, name="persistence"\n' "$disk" "$pnum" "$start" "$size" >> /tmp/sfd.dump
+if ! sfdisk -f "$disk" < /tmp/sfd.dump > /dev/null 2>&1; then
+  msg "partition creation failed — continuing without persistence"
+  exit 0
+fi
+partx -a "$disk" 2>/dev/null || true
+udevadm settle 2>/dev/null || true
+
+p2=""
+for cand in "$disk$pnum" "/dev/${dev}p$pnum"; do
+  [ -b "$cand" ] && p2="$cand" && break
+done
+if [ -z "$p2" ]; then
+  msg "partition node missing — continuing without persistence"
+  exit 0
+fi
+'''
+    src = src[:start] + new + src[end:]
+    open(p,'w').write(src)
+    print('persist-setup now sfdisk-based')
+PYPATCH'
+p = 'rootfs/usr/local/sbin/bnasec-persist-setup'
+src = open(p).read()
 if 'n=$(sgdisk' in src:
     print('persist-setup already patched')
     open('/dev/stdout','w').write('')
