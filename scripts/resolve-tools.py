@@ -27,7 +27,7 @@ ROOTS = [
     "mmdebstrap", "arch-test", "xorriso", "mtools", "squashfs-tools",
     "qemu-system-x86", "qemu-utils", "ovmf", "grub-efi-amd64-bin",
     "grub-pc-bin", "file", "fakeroot", "fakechroot", "wget", "cpio",
-    "e2fsprogs",
+    "e2fsprogs", "seabios", "vgabios", "ipxe-qemu", "seabios-csm",
 ]
 
 
