@@ -1,2 +1,8 @@
 skills/
 node_modules/
+bnasec-build/
+.gh-token
+download/*.iso
+download/*.squashfs
+next.config.ts.bak
+agent-ctx/
