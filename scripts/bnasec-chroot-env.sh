@@ -17,3 +17,9 @@ bnasec_run() {
     LC_ALL=C HOME=/root bash -c "$1"
 }
 export -f bnasec_run
+
+bnasec_min() {
+  fakechroot fakeroot chroot "$BASE/minichroot" /usr/bin/env \
+    DEBIAN_FRONTEND=noninteractive LC_ALL=C HOME=/root bash -c "$1"
+}
+export -f bnasec_min

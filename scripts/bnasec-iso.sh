@@ -26,29 +26,57 @@ case "${1:-all}" in
 iso|all)
   I="$BASE/minichroot/isodir"
   STAGE="$BASE/isostage"
-  rm -rf "$I" "$BASE/minichroot/bnasec-out.iso"
+  rm -f "$BASE/minichroot/bnasec-out.iso"
+  if [ -f "$I/live/filesystem.squashfs" ] && [ -f "$I/boot/grub/grub.cfg" ]; then
+    echo "--- isodir already staged, reusing ---"
+  else
+    rm -rf "$I"
 
-  # stage live files: reuse isostage, else rootfs, else extract from existing ISO
-  mkdir -p "$STAGE"
-  if [ ! -f "$STAGE/filesystem.squashfs" ]; then
-    if [ -f "$BASE/live/filesystem.squashfs" ] && [ -f "$R/boot/vmlinuz-$KVER" ]; then
-      cp "$BASE/live/filesystem.squashfs" "$STAGE/"
-      cp "$R/boot/vmlinuz-$KVER" "$STAGE/vmlinuz"
-      cp "$R/boot/initrd.img-$KVER" "$STAGE/initrd.img"
-    else
-      echo "--- staging live files from existing ISO ---"
+  # stage live files: prefer rootfs+live (hardlinks, no cost), else isostage, else ISO extract
+  mkdir -p "$STAGE" "$I/live" "$I/boot/grub/themes/bnasec" "$I/boot/grub/fonts"
+  if [ -n "$KVER" ] && [ -f "$R/boot/vmlinuz-$KVER" ] && [ -f "$BASE/live/filesystem.squashfs" ]; then
+    ln "$R/boot/vmlinuz-$KVER" "$I/live/vmlinuz"
+    ln "$R/boot/initrd.img-$KVER" "$I/live/initrd.img"
+    ln "$BASE/live/filesystem.squashfs" "$I/live/filesystem.squashfs"
+    cp "$R/boot/vmlinuz-$KVER" "$STAGE/vmlinuz"
+    cp "$R/boot/initrd.img-$KVER" "$STAGE/initrd.img"
+    # squashfs data lives on via the isodir hardlink; free the live copy
+    [ "${KEEP_SQUASHFS:-0}" = "1" ] || rm -f "$BASE/live/filesystem.squashfs"
+  elif [ -d "$R/usr/bin" ] && [ ! -f "$STAGE/filesystem.squashfs" ]; then
+    echo "--- rootfs present but squashfs missing: rebuilding ---"
+    . "$BASE/tools-env.sh"
+    mkdir -p "$BASE/live"
+    mksquashfs "$R" "$BASE/live/filesystem.squashfs" \
+      -comp zstd -Xcompression-level 6 -b 1M -all-root -noappend \
+      -e boot -wildcards -e 'var/cache/apt/*' 'var/lib/apt/lists/*' 2>&1 | tail -1
+    ln "$R/boot/vmlinuz-$KVER" "$I/live/vmlinuz"
+    ln "$R/boot/initrd.img-$KVER" "$I/live/initrd.img"
+    ln "$BASE/live/filesystem.squashfs" "$I/live/filesystem.squashfs"
+    cp "$R/boot/vmlinuz-$KVER" "$STAGE/vmlinuz"; cp "$R/boot/initrd.img-$KVER" "$STAGE/initrd.img"
+    [ "${KEEP_SQUASHFS:-0}" = "1" ] || rm -f "$BASE/live/filesystem.squashfs"
+  elif [ -f "$STAGE/vmlinuz" ] && [ -f "$STAGE/initrd.img" ]; then
+    if [ -f "$BASE/live/filesystem.squashfs" ]; then
+      ln "$BASE/live/filesystem.squashfs" "$STAGE/filesystem.squashfs" 2>/dev/null || cp "$BASE/live/filesystem.squashfs" "$STAGE/"
+    elif [ ! -f "$STAGE/filesystem.squashfs" ]; then
+      echo "--- extracting squashfs from existing ISO ---"
       . "$BASE/tools-env.sh"
-      for pair in "vmlinuz:vmlinuz" "initrd.img:initrd.img" "filesystem.squashfs:filesystem.squashfs"; do
-        src="${pair%%:*}"; dst="${pair##*:}"
-        xorriso -osirrox on -indev "$OUT_ISO" -extract "/live/$src" "$STAGE/$dst" 2>&1 | tail -1
-      done
+      xorriso -osirrox on -indev "$OUT_ISO" -extract /live/filesystem.squashfs "$STAGE/filesystem.squashfs" 2>&1 | tail -1
     fi
+    ln "$STAGE/vmlinuz" "$I/live/vmlinuz"
+    ln "$STAGE/initrd.img" "$I/live/initrd.img"
+    ln "$STAGE/filesystem.squashfs" "$I/live/filesystem.squashfs"
+  else
+    echo "ERROR: no staging source (need rootfs+live or isostage or ISO)" >&2
+    exit 1
   fi
 
-  mkdir -p "$I/live" "$I/boot/grub/themes/bnasec" "$I/boot/grub/fonts"
-  ln "$STAGE/vmlinuz" "$I/live/vmlinuz"
-  ln "$STAGE/initrd.img" "$I/live/initrd.img"
-  ln "$STAGE/filesystem.squashfs" "$I/live/filesystem.squashfs"
+
+  fi
+  # space guard: rootfs data is staged (squashfs + isostage kernel/initrd)
+  AVAIL=$(df -k / | awk 'NR==2{print $4}')
+  if [ "$AVAIL" -lt 1800000 ] && [ -d "$R/usr/bin" ]; then
+    echo "--- freeing rootfs (already staged) ---"; rm -rf "$R"
+  fi
 
   cat > "$I/boot/grub/grub.cfg" <<'EOF'
 set default=0
@@ -104,7 +132,6 @@ EOF
   export FAKECHROOT_CMD_SUBST="/usr/sbin/ldconfig=$BASE/tools-root/usr/libexec/mmdebstrap/ldconfig.fakechroot:/sbin/ldconfig=$BASE/tools-root/usr/libexec/mmdebstrap/ldconfig.fakechroot:/usr/sbin/chroot=$BASE/tools-root/usr/sbin/chroot.fakechroot:/sbin/chroot=$BASE/tools-root/usr/sbin/chroot.fakechroot:/usr/bin/ldd=$BASE/tools-root/usr/bin/ldd.fakechroot:/bin/ldd=$BASE/tools-root/usr/bin/ldd.fakechroot:/bin/ischroot=/bin/true:/usr/bin/ischroot=/bin/true"
   export FAKECHROOT_EXCLUDE_PATH="/dev:/proc:/sys"
   rm -f "$OUT_ISO"
-  fakechroot fakeroot chroot "$BASE/minichroot" /usr/bin/env LC_ALL=C HOME=/root \
     grub-mkrescue -o /bnasec-out.iso /isodir -- -volid BNASEC 2>&1 | tail -2
   mv "$BASE/minichroot/bnasec-out.iso" "$OUT_ISO"
   rm -rf "$I"
