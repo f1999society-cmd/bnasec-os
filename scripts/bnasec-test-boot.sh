@@ -44,7 +44,7 @@ persist:*)
        -initrd "$BASE/isostage/initrd.img" \
        -append "boot=live persistence username=bna hostname=bnasec console=ttyS0 bnasec.persisttest" \
        -drive if=none,id=udisk,format=raw,file=$USB \
-       -device usb-storage,drive=udisk \
+       -device usb-storage,drive=udisk,removable=on \
        -serial file:$BASE/serial-boot$N.log \
        -monitor stdio 2>&1 | grep -vE "^\(qemu\)" | grep -iE "error|fail|kvm" | head -4 || true
   echo "--- serial boot$N (persist/persisttest lines) ---"
@@ -56,7 +56,7 @@ gui-uefi)
   (sleep 60; echo "screendump $S/gui-1.ppm"; sleep 240; echo "screendump $S/gui-2.ppm"; sleep 150; echo "screendump $S/gui-3.ppm"; sleep 2; echo quit) | \
     $Q -accel tcg,thread=multi -L $ROOT/usr/share/qemu \
        -drive if=none,id=udisk,format=raw,file=$USB \
-       -device usb-storage,drive=udisk \
+       -device usb-storage,drive=udisk,removable=on \
        -drive if=pflash,format=raw,readonly=on,file=$ROOT/usr/share/OVMF/OVMF_CODE_4M.fd \
        -drive if=pflash,format=raw,file=$BASE/ovmf-vars2.fd \
        -monitor stdio -serial file:$BASE/serial-gui.log 2>&1 | grep -E "screendump" | head -4
@@ -72,7 +72,7 @@ usb-bios)
   (sleep 8; echo "screendump $S/usb-bios.ppm"; sleep 60; echo "screendump $S/usb-bios2.ppm"; sleep 2; echo quit) | \
     $Q -accel tcg,thread=multi \
        -drive if=none,id=udisk,format=raw,file=$USB \
-       -device usb-storage,drive=udisk \
+       -device usb-storage,drive=udisk,removable=on \
        -monitor stdio -serial file:$BASE/serial-usb-bios.log 2>&1 | grep -c screendump || true
   /home/z/.venv/bin/python3 - "$S/usb-bios.ppm" "$S/usb-bios.png" <<'PYEOF'
 import sys
@@ -87,7 +87,7 @@ usb-uefi)
   (sleep 90; echo "screendump $S/usb-uefi.ppm"; sleep 2; echo quit) | \
     $Q -accel tcg,thread=multi \
        -drive if=none,id=udisk,format=raw,file=$USB \
-       -device usb-storage,drive=udisk \
+       -device usb-storage,drive=udisk,removable=on \
        -drive if=pflash,format=raw,readonly=on,file=$ROOT/usr/share/OVMF/OVMF_CODE_4M.fd \
        -drive if=pflash,format=raw,file=$BASE/ovmf-vars3.fd \
        -monitor stdio -serial null 2>&1 | grep -c screendump || true
