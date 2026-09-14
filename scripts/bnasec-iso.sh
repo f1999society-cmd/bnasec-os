@@ -5,7 +5,7 @@
 set -e
 BASE=/home/z/my-project/bnasec-build
 R=$BASE/rootfs
-KVER=$(ls "$R/lib/modules" | head -1)
+KVER=$(ls "$R/lib/modules" 2>/dev/null | head -1 || true)
 OUT_ISO="$BASE/bnasec-2.0.0-amd64.iso"
 
 case "${1:-all}" in
@@ -24,12 +24,31 @@ esac
 
 case "${1:-all}" in
 iso|all)
-  I="$R/isodir"
-  rm -rf "$I" "$R/bnasec-out.iso" "$OUT_ISO"
+  I="$BASE/minichroot/isodir"
+  STAGE="$BASE/isostage"
+  rm -rf "$I" "$BASE/minichroot/bnasec-out.iso"
+
+  # stage live files: reuse isostage, else rootfs, else extract from existing ISO
+  mkdir -p "$STAGE"
+  if [ ! -f "$STAGE/filesystem.squashfs" ]; then
+    if [ -f "$BASE/live/filesystem.squashfs" ] && [ -f "$R/boot/vmlinuz-$KVER" ]; then
+      cp "$BASE/live/filesystem.squashfs" "$STAGE/"
+      cp "$R/boot/vmlinuz-$KVER" "$STAGE/vmlinuz"
+      cp "$R/boot/initrd.img-$KVER" "$STAGE/initrd.img"
+    else
+      echo "--- staging live files from existing ISO ---"
+      . "$BASE/tools-env.sh"
+      for pair in "vmlinuz:vmlinuz" "initrd.img:initrd.img" "filesystem.squashfs:filesystem.squashfs"; do
+        src="${pair%%:*}"; dst="${pair##*:}"
+        xorriso -osirrox on -indev "$OUT_ISO" -extract "/live/$src" "$STAGE/$dst" 2>&1 | tail -1
+      done
+    fi
+  fi
+
   mkdir -p "$I/live" "$I/boot/grub/themes/bnasec" "$I/boot/grub/fonts"
-  ln "$R/boot/vmlinuz-$KVER" "$I/live/vmlinuz"
-  ln "$R/boot/initrd.img-$KVER" "$I/live/initrd.img"
-  ln "$BASE/live/filesystem.squashfs" "$I/live/filesystem.squashfs"
+  ln "$STAGE/vmlinuz" "$I/live/vmlinuz"
+  ln "$STAGE/initrd.img" "$I/live/initrd.img"
+  ln "$STAGE/filesystem.squashfs" "$I/live/filesystem.squashfs"
 
   cat > "$I/boot/grub/grub.cfg" <<'EOF'
 set default=0
@@ -60,23 +79,37 @@ EOF
   cat > "$I/boot/grub/themes/bnasec/theme.txt" <<'EOF'
 desktop-image: "bg.png"
 desktop-color: "#0a0e1a"
+title-text: ""
 title-color: "#eef4fc"
-title-font: "Unknown Regular 22"
-menu-color: "#9aa7bd"
-menu-font: "Unknown Regular 16"
-menu-highlight-color: "#22d3ee"
-menu-border-color: "#1b2740"
+title-font: "Unknown Regular 20"
+
++ boot_menu {
+  left = 12%
+  top = 30%
+  width = 76%
+  height = 50%
+  item_font = "Unknown Regular 16"
+  item_color = "#9aa7bd"
+  selected_item_color = "#22d3ee"
+  item_height = 34
+  item_padding = 6
+  item_spacing = 6
+}
 EOF
   cp "$BASE/assets/grub-bg.png" "$I/boot/grub/themes/bnasec/bg.png"
   cp "$BASE/tools-root/usr/share/grub/unicode.pf2" "$I/boot/grub/fonts/unicode.pf2"
 
-  echo "--- grub-mkrescue inside chroot ---"
-  . /home/z/my-project/scripts/bnasec-chroot-env.sh
-  bnasec_run "grub-mkrescue -o /bnasec-out.iso /isodir -- -volid BNASEC" 2>&1 | tail -3
-  mv "$R/bnasec-out.iso" "$OUT_ISO"
+  echo "--- grub-mkrescue inside minichroot ---"
+  . "$BASE/tools-env.sh"
+  export FAKECHROOT_CMD_SUBST="/usr/sbin/ldconfig=$BASE/tools-root/usr/libexec/mmdebstrap/ldconfig.fakechroot:/sbin/ldconfig=$BASE/tools-root/usr/libexec/mmdebstrap/ldconfig.fakechroot:/usr/sbin/chroot=$BASE/tools-root/usr/sbin/chroot.fakechroot:/sbin/chroot=$BASE/tools-root/usr/sbin/chroot.fakechroot:/usr/bin/ldd=$BASE/tools-root/usr/bin/ldd.fakechroot:/bin/ldd=$BASE/tools-root/usr/bin/ldd.fakechroot:/bin/ischroot=/bin/true:/usr/bin/ischroot=/bin/true"
+  export FAKECHROOT_EXCLUDE_PATH="/dev:/proc:/sys"
+  rm -f "$OUT_ISO"
+  fakechroot fakeroot chroot "$BASE/minichroot" /usr/bin/env LC_ALL=C HOME=/root \
+    grub-mkrescue -o /bnasec-out.iso /isodir -- -volid BNASEC 2>&1 | tail -2
+  mv "$BASE/minichroot/bnasec-out.iso" "$OUT_ISO"
   rm -rf "$I"
   ls -la "$OUT_ISO"
   echo "--- eltorito/MBR check ---"
-  "$BASE/tools-root/usr/bin/xorriso" -indev "$OUT_ISO" -report_el_torito as_mkisofs 2>/dev/null | grep -vE "NOTE|UPDATE|xorriso|Media|Drive" | head -12
+  xorriso -indev "$OUT_ISO" -report_el_torito as_mkisofs 2>/dev/null | grep -E "^-b|^-e|--grub2-mbr|--efi-boot|protective" | head -8
   ;;
 esac
