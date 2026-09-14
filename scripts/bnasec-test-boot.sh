@@ -84,7 +84,7 @@ PYEOF
   ;;
 usb-uefi)
   cp "$ROOT/usr/share/OVMF/OVMF_VARS_4M.fd" "$BASE/ovmf-vars3.fd"
-  (sleep 40; echo "screendump $S/usb-uefi.ppm"; sleep 2; echo quit) | \
+  (sleep 90; echo "screendump $S/usb-uefi.ppm"; sleep 2; echo quit) | \
     $Q -accel tcg,thread=multi \
        -drive if=none,id=udisk,format=raw,file=$USB \
        -device usb-storage,drive=udisk \

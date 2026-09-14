@@ -29,6 +29,7 @@ iso|all)
   rm -f "$BASE/minichroot/bnasec-out.iso"
   if [ -f "$I/live/filesystem.squashfs" ] && [ -f "$I/boot/grub/grub.cfg" ]; then
     echo "--- isodir already staged, reusing ---"
+    rm -f "$OUT_ISO"
   else
     rm -rf "$I"
 
@@ -112,6 +113,7 @@ title-color: "#eef4fc"
 title-font: "Unknown Regular 20"
 
 + boot_menu {
+  menu_pixmap_style = "menu_*.png"
   left = 12%
   top = 30%
   width = 76%
@@ -125,6 +127,7 @@ title-font: "Unknown Regular 20"
 }
 EOF
   cp "$BASE/assets/grub-bg.png" "$I/boot/grub/themes/bnasec/bg.png"
+  cp "$BASE"/assets/menu_*.png "$I/boot/grub/themes/bnasec/"
   cp "$BASE/tools-root/usr/share/grub/unicode.pf2" "$I/boot/grub/fonts/unicode.pf2"
 
   echo "--- grub-mkrescue inside minichroot ---"
