@@ -116,3 +116,23 @@ Stage Summary:
 - Site live on port 3000 (Preview Panel); ISO downloadable via /api/iso with resume support
 - ALL 12 tasks complete: toolchain, rootfs, packages, customization, persistence, splash, tools, hybrid ISO, QEMU matrix (BIOS+UEFI+persistence), deliverables, site, GitHub Release
 - Reminder for user: revoke GitHub token after downloading
+
+---
+Task ID: 7-sudo-fix
+Agent: main
+Task: Fix sudo setuid bug reported by user booting the OS on real hardware
+
+Work Log:
+- User booted BNAsec on real hardware; sudo failed: "must be owned by uid 0 and have the setuid bit set"
+- Diagnosis from ISO squashfs metadata: ALL setuid bits stripped (0 files with -rws; sudo/pkexec/mount/su/passwd... all 755) — root cause: reset-3 recovery unsquashed the checkpoint rootfs as non-root user z, which drops suid bits; rebuilt squashfs baked the stripped modes
+- Second bug: user bna NOT in sudo group (sudo:x:27: empty; live-config may add it at runtime but not guaranteed)
+- Attempted mksquashfs append+override: dirs renamed usr_1/etc_1 (no dir merge in 4.6.1) — abandoned; pollution cleaned
+- Definitive fix (scripts/bnasec-suid-fix2.sh): full tree extract (58,476 files, 3.8G) -> chmod 17 files (12x4755 /usr/bin, Xorg.wrap 4755, polkit-agent-helper-1 4755, dbus-daemon-launch-helper 4754, unix_chkpwd 4754, wall 2755) -> group/gshadow add bna to sudo -> updated firstboot (usermod -aG sudo bna) -> new bnasec-suid-repair.service (boot-time idempotent insurance) -> fresh mksquashfs (zstd-6, 1M, -all-root, original excludes)
+- Space management: deleted stale /tmp/my-project copy (2.6G), git gc pruned .git 2.6G->14M, debs/ removed; guards in script
+- New ISO: 1,580,347,392 bytes, sha256 03bdc98da458389eef468c6299451f117653ae3677ae9f2a7991e8800a5a4dc2
+- Verified: sudo = -rwsr-xr-x inside new ISO squashfs; group has bna; BIOS smoke test -> GNOME desktop w/ autologin (shots/smoke-t240/300.png)
+- Release v2.0.0 assets replaced with fixed ISO + sha; release body documents fixes; download/ refreshed
+
+Stage Summary:
+- Fixed ISO live on GitHub Release v2.0.0; user's CURRENT stick fixable via GRUB systemd.debug_shell=1 (chmod batch + usermod -aG sudo bna) or reflash
+- NOTE: non-root unsquashfs strips suid — ALWAYS restore bits after any unsquash-as-z step (bnasec-suid-fix2.sh is the canonical repair)
