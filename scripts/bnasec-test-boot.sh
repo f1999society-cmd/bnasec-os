@@ -34,9 +34,11 @@ grub-uefi)
 persist:*)
   N=${1#persist:}
   USB=$BASE/test-usb.img
-  rm -f "$USB"
-  qemu-img create -f raw "$USB" 8G >/dev/null
-  dd if="$ISO" of="$USB" conv=notrunc bs=4M status=none
+  if [ "${FRESH:-1}" = "1" ]; then
+    rm -f "$USB"
+    qemu-img create -f raw "$USB" 8G >/dev/null
+    dd if="$ISO" of="$USB" conv=notrunc bs=4M status=none
+  fi
   (sleep 560; echo quit) | \
     $Q -accel tcg,thread=multi -no-reboot \
        -kernel "$BASE/isostage/vmlinuz" \
@@ -65,9 +67,11 @@ gui-uefi)
 
 usb-bios)
   USB=$BASE/test-usb.img
-  rm -f "$USB"
-  qemu-img create -f raw "$USB" 8G >/dev/null
-  dd if="$ISO" of="$USB" conv=notrunc bs=4M status=none
+  if [ "${FRESH:-1}" = "1" ]; then
+    rm -f "$USB"
+    qemu-img create -f raw "$USB" 8G >/dev/null
+    dd if="$ISO" of="$USB" conv=notrunc bs=4M status=none
+  fi
   (sleep 8; echo "screendump $S/usb-bios.ppm"; sleep 60; echo "screendump $S/usb-bios2.ppm"; sleep 2; echo quit) | \
     $Q -accel tcg,thread=multi \
        -drive if=none,id=udisk,format=raw,file=$USB \
