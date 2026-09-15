@@ -26,83 +26,9 @@ fi
 
 # 2b) re-apply fixes the checkpoint predates
 cd "$BASE"
-python3 - <<'PYPATCH'
-p = 'rootfs/usr/local/sbin/bnasec-persist-setup'
-src = open(p).read()
-if 'sfdisk -f "$disk"' in src:
-    print('persist-setup already sfdisk-based')
-else:
-    start = src.index('sgdisk -e "$disk"')
-    end = src.index('mkfs.ext4 -L persistence')
-    new = '''# compute next free partition using sfdisk dump (non-interactive, busy-safe)
-total=$(blockdev --getsize64 "$disk")
-sectors=$(( total / 512 ))
-lastend=$(lsblk -bno END "$disk" 2>/dev/null | sort -n | tail -1); lastend=${lastend:-0}
-start=$(( lastend / 512 + 1 ))
-size=$(( sectors - start - 34 ))
-sfdisk -d "$disk" > /tmp/sfd.dump 2>/dev/null || true
-pnum=$(grep -cE "^/dev/" /tmp/sfd.dump); pnum=$(( pnum + 1 ))
-printf '%s%s : start=%s, size=%s, type=8300, name="persistence"\n' "$disk" "$pnum" "$start" "$size" >> /tmp/sfd.dump
-if ! sfdisk -f "$disk" < /tmp/sfd.dump > /dev/null 2>&1; then
-  msg "partition creation failed — continuing without persistence"
-  exit 0
-fi
-partx -a "$disk" 2>/dev/null || true
-udevadm settle 2>/dev/null || true
+cp "$BASE/../scripts/reference-bnasec-persist-setup" "$R/usr/local/sbin/bnasec-persist-setup"
+chmod +x "$R/usr/local/sbin/bnasec-persist-setup"
 
-p2=""
-for cand in "$disk$pnum" "/dev/${dev}p$pnum"; do
-  [ -b "$cand" ] && p2="$cand" && break
-done
-if [ -z "$p2" ]; then
-  msg "partition node missing — continuing without persistence"
-  exit 0
-fi
-'''
-    src = src[:start] + new + src[end:]
-    open(p,'w').write(src)
-    print('persist-setup now sfdisk-based')
-PYPATCH'
-p = 'rootfs/usr/local/sbin/bnasec-persist-setup'
-src = open(p).read()
-if 'n=$(sgdisk' in src:
-    print('persist-setup already patched')
-    open('/dev/stdout','w').write('')
-    import sys; sys.exit(0)
-old = '''sgdisk -e "$disk" >/dev/null 2>&1 || true
-if ! sgdisk -N 2 "$disk" >/dev/null 2>&1; then
-  msg "partition creation failed — continuing without persistence"
-  exit 0
-fi
-sgdisk -t 2:8300 "$disk" >/dev/null 2>&1 || true
-sgdisk -c 2:"persistence" "$disk" >/dev/null 2>&1 || true
-partx -a "$disk" 2>/dev/null || true
-udevadm settle 2>/dev/null || true
-
-p2=""
-for cand in "$disk"2 "/dev/${dev}p2"; do
-  [ -b "$cand" ] && p2="$cand" && break
-done'''
-new = '''sgdisk -e "$disk" >/dev/null 2>&1 || true
-n=$(sgdisk -p "$disk" 2>/dev/null | awk '/^ *[0-9]+ /{last=$1} END{print last+1}')
-n=${n:-2}
-if ! sgdisk -N "$n" "$disk" >/dev/null 2>&1; then
-  msg "partition creation failed — continuing without persistence"
-  exit 0
-fi
-sgdisk -t "${n}:8300" "$disk" >/dev/null 2>&1 || true
-sgdisk -c "${n}:persistence" "$disk" >/dev/null 2>&1 || true
-partx -a "$disk" 2>/dev/null || true
-udevadm settle 2>/dev/null || true
-
-p2=""
-for cand in "$disk$n" "/dev/${dev}p$n"; do
-  [ -b "$cand" ] && p2="$cand" && break
-done'''
-assert old in src
-open(p,'w').write(src.replace(old, new))
-print("persist-setup patched")
-PYPATCH
 mkdir -p "$R/boot" "$R/etc/initramfs-tools/hooks"
 cp "$BASE/isostage/vmlinuz" "$R/boot/vmlinuz-6.12.107+deb13-amd64"
 cp "$BASE/assets/hook-bnasec-udev-libs" "$R/etc/initramfs-tools/hooks/bnasec-udev-libs"
