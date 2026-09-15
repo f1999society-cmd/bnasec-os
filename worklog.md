@@ -77,3 +77,23 @@ Work Log:
 Stage Summary:
 - Fixed ISO rebuilt from clean checkpoint+kernel; QEMU test matrix next: BIOS, UEFI, persist boot1+boot2, tools
 - NOTE for future agents: use toram/careful git adds; NEVER git add -A at my-project root (rootfs/.git bloat filled disk twice)
+
+---
+Task ID: 5-final-verify-release
+Agent: main
+Task: Final verification matrix + fix stale GitHub release assets
+
+Work Log:
+- Discovered .sha256 (15:32) predated final ISO (15:51) — recomputed: 1ed65419e124be5ec2e38619b24a261571101172dc665f9d9cca3d98d7e9d094; fixed local + download/ copies
+- Discovered GitHub release v2.0.0 assets were STALE (uploaded 02:52, old pre-fix ISO 1,660,682,240 bytes vs final 1,580,347,392)
+- Extracted /boot/grub/grub.cfg from final ISO: quiet splash + persistence + bnasec theme + 3 entries CONFIRMED
+- Extracted filesystem.squashfs: all 6 tools CONFIRMED (aircrack-ng, nmap, hydra, dirb, sqlmap symlink, wpscan 3.8.28 + /usr/local/bin/wpscan)
+- BIOS proof (from prior session): serial-boot1 (provision) + serial-boot2 (overlay on /, marker, GDM login) — PASSED
+- UEFI proof (this session, OVMF 4M): booted final ISO to full GNOME desktop at t=240 with BNAsec wallpaper + autologin (shots/uefi-t240.png, uefi-t300.png); welcome-tour dialog appears once, dismissed state persists via full-root persistence
+- NOTE: sandbox kills nohup'd background processes between tool calls — run QEMU tests synchronously with 600s timeout
+- Replaced release assets: deleted stale, uploaded final ISO (1,580,347,392 bytes, state=uploaded, byte-count verified vs local) + fresh .sha256; release body updated with verification matrix
+- Boot evidence copied to tracked assets/: uefi-desktop.png, uefi-welcome.png, bios-desktop.png; pushed commit 4a99ea4 (scripts+logs+assets)
+
+Stage Summary:
+- BNAsec 2.0.0 FINAL ISO fully verified (BIOS+UEFI+persistence+splash+tools) and live on GitHub Release v2.0.0 with correct checksum
+- Remaining: download-site rebuild, final push, remind user to revoke token after download

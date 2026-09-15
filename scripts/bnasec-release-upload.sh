@@ -20,10 +20,11 @@ for a in json.load(sys.stdin): print(a['id'])"); do
   api -X DELETE "https://api.github.com/repos/$REPO/releases/assets/$AID" -o /dev/null
 done
 
-echo "=== 3) update release body (fixed build) ==="
-api -X PATCH "https://api.github.com/repos/$REPO/releases/$RID" -d '{
-  "body": "BNAsec 2.0.0 — REBUILT FIXED ISO (2026-09-15)\n\nDebian trixie live ISO: GNOME+GDM3 autologin bna, zsh+p10k, 6 pentest tools, hybrid BIOS+UEFI (Secure Boot OFF), plymouth splash with spinner, full-root persistence (auto-provisioned, ALL free space, same-boot activation).\n\nVERIFIED in QEMU: BIOS boot to GNOME desktop, UEFI boot with splash, persistence auto-provisioning + 2-boot proof.\n\nChanges vs 2026-09-15 02:52 build:\n- persistence bug FIXED (initramfs same-boot provisioning + hardened systemd fallback + sfdisk installed)\n- initramfs fully rebuilt (complete lib closures, ELF loader, busybox intact)\n- 696 broken host-path symlinks repaired (CA certs/PAM/ALSA/GDM)\n- GRUB El Torito cdboot fix (BIOS boot now works, was VGA garbage)\n\nSHA256: f0e6dff72130eea1902597531bba9d7866a741e94039cb7a9b233391b92fd1d2\n\nFlash: dd if=bnasec-2.0.0-amd64.iso of=/dev/sdX bs=4M status=progress oflag=sync\nSecure Boot: OFF. First boot auto-creates persistence partition with all free space."
-}' | python3 -c "import json,sys;d=json.load(sys.stdin);print('  release updated:', d.get('name', d.get('message')))"
+echo "=== 3) update release body (final verified build) ==="
+NEWSHA=$(awk '{print $1}' "$SHA")
+api -X PATCH "https://api.github.com/repos/$REPO/releases/$RID" -d "{
+  \"body\": \"BNAsec 2.0.0 — FINAL VERIFIED ISO (2026-09-15 15:51 build)\\n\\nDebian trixie live ISO: GNOME+GDM3 autologin bna, zsh+p10k, 6 pentest tools, hybrid BIOS+UEFI (Secure Boot OFF), plymouth splash, full-root persistence (auto-provisioned, ALL free space, same-boot activation).\\n\\nVERIFIED in QEMU on THIS build:\\n- BIOS boot: full boot to GDM, persistence overlay active on / (boot1 provision + boot2 proof)\\n- UEFI (OVMF) boot: full boot to GNOME desktop with BNAsec wallpaper + autologin\\n- 6 tools confirmed inside image: aircrack-ng, nmap, hydra, wpscan 3.8.28, dirb, sqlmap\\n- GRUB: quiet splash + bnasec theme + 3 entries (persistent / RAM-only / debug)\\n\\nSHA256: $NEWSHA\\n\\nFlash: dd if=bnasec-2.0.0-amd64.iso of=/dev/sdX bs=4M status=progress oflag=sync\\nSecure Boot: OFF. First boot auto-creates persistence partition with all free space.\"
+}" | python3 -c "import json,sys;d=json.load(sys.stdin);print('  release updated:', d.get('name', d.get('message')))"
 
 echo "=== 4) upload ISO ==="
 SZ=$(stat -c %s "$ISO")
