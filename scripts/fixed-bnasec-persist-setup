@@ -71,9 +71,13 @@ fi
 pnum=$(( maxnum + 1 ))
 cmsg "creating ${gapMiB}MiB persistence partition ${disk}${pnum} (start=$start, sectors=$size) ..."
 
-# 4) append the new partition and rewrite the table
-printf '%s%s : start=%s, size=%s, type=8300, name="persistence"\n' "$disk" "$pnum" "$start" "$size" >> /tmp/bnasec-sfd.dump
-sfdisk -f "$disk" < /tmp/bnasec-sfd.dump > /dev/null 2>&1 || cmsg "sfdisk rc=$? — verifying node anyway"
+# 4) APPEND the new partition. --append preserves the hybrid isohybrid table;
+# a full-script apply RE-CREATES the disklabel and fails on the start=0
+# isohybrid partition ("Start sector 0 out of range").
+LBL=$(sfdisk -d "$disk" 2>/dev/null | awk 'NR==1{print $2}')
+if [ "$LBL" = gpt ]; then PTYPE="type=linux"; else PTYPE="type=83"; fi
+printf 'start=%s, size=%s, %s\n' "$start" "$size" "$PTYPE" > /tmp/bnasec-append.dump
+sfdisk -f --append "$disk" < /tmp/bnasec-append.dump > /dev/null 2>&1 || cmsg "sfdisk rc=$? — verifying node anyway"
 partx -a "$disk" 2>/dev/null || true
 udevadm settle --timeout=10 2>/dev/null || true
 sleep 1

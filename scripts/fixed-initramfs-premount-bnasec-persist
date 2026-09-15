@@ -79,12 +79,15 @@ for p in /sys/class/block/${disk}[0-9]*; do
   [ "$n" -ge "$pnum" ] && pnum=$(( n + 1 ))
 done
 
-log "creating partition ${disk}${pnum}: start=$start sectors=$size ($((size/2048))MiB)"
-sfdisk -d "/dev/$disk" > /tmp/bnasec-sfd.dump 2>/dev/null
-printf '%s%s : start=%s, size=%s, type=8300, name="persistence"\n' "/dev/$disk" "$pnum" "$start" "$size" >> /tmp/bnasec-sfd.dump
-sfdisk -f "/dev/$disk" < /tmp/bnasec-sfd.dump >/dev/null 2>&1
+log "appending partition ${disk}${pnum}: start=$start size=$size ($((size/2048))MiB)"
+# --append preserves the hybrid isohybrid table; a full-script apply
+# RE-CREATES the disklabel and fails on the start=0 isohybrid partition
+LBL=$(sfdisk -d "/dev/$disk" 2>/dev/null | awk 'NR==1{print $2}')
+if [ "$LBL" = gpt ]; then PTYPE="type=linux"; else PTYPE="type=83"; fi
+printf 'start=%s, size=%s, %s\n' "$start" "$size" "$PTYPE" | \
+  sfdisk -f --append "/dev/$disk" >/dev/null 2>&1
 rc=$?
-[ "$rc" -eq 0 ] || log "sfdisk exit=$rc — checking for the partition node anyway"
+[ "$rc" -eq 0 ] || log "sfdisk --append exit=$rc — checking for the partition node anyway"
 partx -a "/dev/$disk" >/dev/null 2>&1 || true
 udevadm settle --timeout=10 2>/dev/null || true
 sleep 1
