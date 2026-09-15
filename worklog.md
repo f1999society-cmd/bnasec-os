@@ -97,3 +97,22 @@ Work Log:
 Stage Summary:
 - BNAsec 2.0.0 FINAL ISO fully verified (BIOS+UEFI+persistence+splash+tools) and live on GitHub Release v2.0.0 with correct checksum
 - Remaining: download-site rebuild, final push, remind user to revoke token after download
+
+---
+Task ID: 6-download-site
+Agent: main
+Task: Rebuild Next.js download site + final delivery
+
+Work Log:
+- Initialized fullstack env (Next.js 16 + App Router + shadcn/ui)
+- src/lib/deliverables.ts: ISO metadata (size/sha256/mtime from bnasec-build)
+- src/app/api/iso/route.ts: GET/HEAD with full HTTP Range support (suffix + interval ranges, 206/416), streams ISO via Readable.toWeb — VERIFIED byte-exact with cmp against source
+- src/app/api/files/route.ts: JSON metadata + sha256 + README text
+- src/app/page.tsx: dark BNAsec portal (hero + real UEFI screenshot + features + 6 tools + dd quick-start + sticky footer), src/components/copy-field.tsx client copy button
+- layout.tsx metadata rebranded (title/favicon/OG)
+- agent-browser verification: renders, no console/page errors, copy button toggles to Copied, title correct, lint clean
+
+Stage Summary:
+- Site live on port 3000 (Preview Panel); ISO downloadable via /api/iso with resume support
+- ALL 12 tasks complete: toolchain, rootfs, packages, customization, persistence, splash, tools, hybrid ISO, QEMU matrix (BIOS+UEFI+persistence), deliverables, site, GitHub Release
+- Reminder for user: revoke GitHub token after downloading
