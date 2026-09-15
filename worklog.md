@@ -136,3 +136,21 @@ Work Log:
 Stage Summary:
 - Fixed ISO live on GitHub Release v2.0.0; user's CURRENT stick fixable via GRUB systemd.debug_shell=1 (chmod batch + usermod -aG sudo bna) or reflash
 - NOTE: non-root unsquashfs strips suid — ALWAYS restore bits after any unsquash-as-z step (bnasec-suid-fix2.sh is the canonical repair)
+
+---
+Task ID: 8-sudo-fix-recovery
+Agent: main
+Task: User reported sudo setuid error on real hardware; sandbox had RESET since — verify release fix state, restore env, deliver on-stick fix
+
+Work Log:
+- Sandbox reset wiped all local files (worklog/scripts/src/ISO). Recovered: repo via token clone; user-space toolchain via apt-get download + dpkg -x into tools-root (gotcha: trixie t64 rename — libisoburn1t64/libisofs6t64/libburn4t64 not in partial apt index, fetched from pool via full Packages.xz); sandbox = Debian 13, apt download works rootless, 9.9GB disk
+- Downloaded release v2.0.0 ISO asset: 1,580,347,392 bytes, sha256 03bdc98da458389eef468c6299451f117653ae3677ae9f2a7991e8800a5a4dc2 — MATCHES task-7 fixed build (worklog below was written after the summary snapshot)
+- INDEPENDENT AUDIT of release ISO squashfs (unsquashfs -lls): ALL 17 setuid/setgid bits present (sudo/su/passwd/chfn/chsh/gpasswd/mount/umount/fusermount3/pkexec/chage/expiry 4755, wall 2755, dbus-daemon-launch-helper + unix_chkpwd 4754, Xorg.wrap + polkit-agent-helper-1 4755); grub.cfg identical to repo copy
+- CONCLUSION: GitHub release already carries the sudo-fixed build — NO REBUILD NEEDED. User's USB stick predates the fix (flashed from first upload)
+- Gave user corrected on-stick fix (2 phases): GRUB e -> init=/bin/sh -> chown root:root /usr/bin/sudo + chmod 4755 + ADD bna to sudo group (second bug: sudoers %sudo empty) + sync + exec /sbin/init; then desktop block restoring all 17 bits + chown home. Persists via full-root persistence
+- Wrote scripts/bnasec-fix-setuid-onstick.sh (canonical idempotent user repair, both root and sudo contexts) and recovery scripts bnasec-tools-bootstrap.sh + bnasec-phaseA-extract.sh
+- Restored download/ (ISO hardlink + sha256 + README); ISO sha256 verified 03bdc98d...
+- Restored Next.js download portal from repo src (package.json etc. were never committed — recreated config), site streams fixed ISO
+
+Stage Summary:
+- Release v2.0.0 verified good as-is; user fix delivered in chat + canonical script committed; environment fully recovered; all work pushed to GitHub
