@@ -1,0 +1,19 @@
+desktop-image: "bg.png"
+desktop-color: "#0a0e1a"
+title-text: ""
+title-color: "#eef4fc"
+title-font: "Unknown Regular 20"
+
++ boot_menu {
+  menu_pixmap_style = "menu_*.png"
+  left = 12%
+  top = 30%
+  width = 76%
+  height = 50%
+  item_font = "Unknown Regular 16"
+  item_color = "#9aa7bd"
+  selected_item_color = "#22d3ee"
+  item_height = 34
+  item_padding = 6
+  item_spacing = 6
+}

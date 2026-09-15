@@ -21,3 +21,5 @@ node_modules/
 .gh-token
 .env
 
+bnasec-build/isostage/
+bnasec-build/ovmf-vars.fd

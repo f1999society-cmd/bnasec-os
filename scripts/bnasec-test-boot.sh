@@ -39,7 +39,7 @@ persist:*)
     qemu-img create -f raw "$USB" 8G >/dev/null
     dd if="$ISO" of="$USB" conv=notrunc bs=4M status=none
   fi
-  (sleep 560; echo quit) | \
+  (sleep 420; echo quit) | \
     $Q -accel tcg,thread=multi -no-reboot \
        -kernel "$BASE/isostage/vmlinuz" \
        -initrd "$BASE/isostage/initrd.img" \
