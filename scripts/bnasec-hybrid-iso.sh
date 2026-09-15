@@ -19,7 +19,10 @@ cat > $W/early-bios.cfg << 'EOF'
 search.fs_label BNASEC root
 set prefix=($root)/boot/grub
 EOF
-grub-mkimage -O i386-pc -d $GRUBB/i386-pc -o $W/bios.img \
+# El Torito boot REQUIRES the cdboot flavor (2048B CD-sector loader).
+# i386-pc-eltorito = cdboot.img + core (same recipe grub-mkrescue uses).
+# A plain i386-pc image shows VGA garbage after "Booting from DVD/CD".
+grub-mkimage -O i386-pc-eltorito -d $GRUBB/i386-pc -o $W/bios.img \
   -p /boot/grub -c $W/early-bios.cfg \
   biosdisk iso9660 part_gpt part_msdos search_fs_file search_label search_fs_uuid \
   all_video gfxterm font png jpeg video_bochs video_cirrus \
@@ -78,7 +81,7 @@ xorriso -as mkisofs \
   --grub2-boot-info \
   -c /boot.catalog \
   -b /boot/grub/bios.img \
-    -no-emul-boot -boot-load-size 4 \
+    -no-emul-boot -boot-load-size 4 -boot-info-table \
   -eltorito-alt-boot \
   -e --interval:appended_partition_2:all:: \
     -no-emul-boot \
