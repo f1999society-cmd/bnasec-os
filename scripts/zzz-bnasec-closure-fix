@@ -93,6 +93,18 @@ resolve_closure /usr/sbin/blkid
 resolve_closure /bin/mount
 resolve_closure /bin/umount
 
+# 2b) ELF INTERPRETER — without /lib64/ld-linux-x86-64.so.2 EVERY dynamic
+# binary fails execve with ENOENT (busybox sh prints "not found")
+ILD=$(readlink -f /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 2>/dev/null)
+if [ -n "$ILD" ] && [ -f "$ILD" ]; then
+  mkdir -p "${DESTDIR}/lib64" "${DESTDIR}/usr/lib64"
+  cp -fL "$ILD" "${DESTDIR}/lib64/ld-linux-x86-64.so.2" || FAIL=1
+  ln -f "${DESTDIR}/lib64/ld-linux-x86-64.so.2" "${DESTDIR}/usr/lib64/ld-linux-x86-64.so.2" 2>/dev/null || \
+    cp -fL "$ILD" "${DESTDIR}/usr/lib64/ld-linux-x86-64.so.2"
+else
+  echo "zzz-closure: dynamic loader NOT FOUND in rootfs" >&2; FAIL=1
+fi
+
 # 3) self-verify: binaries exist AND are non-empty; every closure lib exists
 for p in /usr/bin/busybox /usr/bin/udevadm /usr/lib/systemd/systemd-udevd \
          /usr/sbin/plymouthd /usr/bin/plymouth /usr/sbin/blkid /bin/mount /bin/umount; do
