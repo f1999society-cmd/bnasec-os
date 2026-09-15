@@ -154,3 +154,21 @@ Work Log:
 
 Stage Summary:
 - Release v2.0.0 verified good as-is; user fix delivered in chat + canonical script committed; environment fully recovered; all work pushed to GitHub
+
+---
+Task ID: 9-hw-feedback-sudo-and-perf
+Agent: main
+Task: User on real hardware: (1) "Where?" + sudo setuid error, (2) OS slow, apps freeze with GNOME wait/force-quit dialogs — deliver fixes
+
+Work Log:
+- Verified local ISO sha256 = 03bdc98da458389eef468c6299451f117653ae3677ae9f2a7991e8800a5a4dc2 = the sudo-FIXED build from task 7 (matches worklog records)
+- Re-verified GitHub release v2.0.0 (id 388836939) assets via API: bnasec-2.0.0-amd64.iso 1,580,347,392 bytes state=uploaded (the fixed build) + .sha256 — NO REBUILD NEEDED; user's stick simply predates the fix (flashed from first upload)
+- Git topology clarified: /home/z/my-project/.git is the platform scaffold repo (1 scaffold commit, bnasec files untracked — do NOT git add -A there); the real bnasec-os clone lives at /home/z/my-project/repo (clean, pushed through a99db65). Canonical repair script at repo/scripts/bnasec-fix-setuid-onstick.sh
+- Read canonical on-stick repair script: fixes BOTH bugs (17 setuid/setgid bits + bna into sudo group via sed on /etc/group) in 2 phases: phase 1 init=/bin/sh root one-liners (sudo chown/chmod + group + sync + exec /sbin/init), phase 2 desktop paste block (full 17-bit chmod + chown -R bna:bna /home/bna + sudo -v verify); idempotent
+- Root cause of user's sudo error: stick flashed from FIRST upload (sha 1ed65419...), which had setuid bits stripped by non-root unsquash during task-4 recovery; fixed ISO (03bdc98d) shipped to release afterwards
+- Perf diagnosis for user (no swap + USB-root live system + GNOME): delivered FIX 2 paste block — zram swap systemd unit (zstd, 4G, prio 100), sysctl tuning (swappiness=20, vfs_cache_pressure=50, dirty_background_bytes=16M, dirty_bytes=128M), BFQ scheduler (modules-load + udev rule + live apply), animations off via gsettings; all persist via full-root persistence; requested diagnostics (free -h; df -h /; nproc; dmesg) for further tuning
+- Decision: do NOT rebuild ISO for perf tweaks (no rootfs tree on disk, ENOSPC risk, user fixable in place); optional future 2.1 build would bake zram/sysctl/BFQ/dconf-animations into image
+
+Stage Summary:
+- GitHub Release verified carrying sudo-fixed ISO; user given consolidated 3-step repair (sudo+group fix at boot, perf block on desktop, diagnostics back to us)
+- Repo up to date (a99db65); no code changes this turn beyond worklog sync
