@@ -1,0 +1,50 @@
+#!/bin/sh
+# BNAsec initramfs hook: plymouth (splash) binaries + libs + theme, as REAL
+# FILES with self-verification (mirrors bnasec-udev-complete hardening).
+PREREQ=""
+prereq() { echo "$PREREQ"; }
+case "$1" in
+  prereq) prereq; exit 0 ;;
+esac
+. /usr/share/initramfs-tools/hook-functions
+
+FAIL=0
+copy_real() {
+  src="$1"; dst="$2"
+  if [ ! -f "$src" ]; then
+    echo "bnasec-plymouth-complete: MISSING SOURCE $src" >&2
+    FAIL=1; return
+  fi
+  mkdir -p "${DESTDIR}${dst%/*}"
+  cp -fL "$src" "${DESTDIR}${dst}" || { echo "bnasec-plymouth-complete: COPY FAILED $src" >&2; FAIL=1; }
+}
+
+copy_real /usr/sbin/plymouthd /usr/sbin/plymouthd
+copy_real /usr/bin/plymouth /usr/bin/plymouth
+
+for lib in libply.so.5 libply-splash-core.so.5 libply-splash-graphics.so.5 \
+           libevdev.so.2 libxkbcommon.so.0 libudev.so.1 libcap.so.2 libm.so.6 ; do
+  real=$(readlink -f "/usr/lib/x86_64-linux-gnu/$lib" 2>/dev/null)
+  [ -n "$real" ] && [ -f "$real" ] && copy_real "$real" "/usr/lib/x86_64-linux-gnu/$lib"
+done
+
+# theme files (bnasec) + debian fallback logo + defaults
+if [ -d /usr/share/plymouth/themes/bnasec ]; then
+  mkdir -p "${DESTDIR}/usr/share/plymouth/themes/bnasec"
+  for f in /usr/share/plymouth/themes/bnasec/*; do
+    cp -f "$f" "${DESTDIR}/usr/share/plymouth/themes/bnasec/$(basename "$f")" || FAIL=1
+  done
+fi
+[ -f /usr/share/plymouth/plymouthd.defaults ] && copy_real /usr/share/plymouth/plymouthd.defaults /usr/share/plymouth/plymouthd.defaults
+[ -f /usr/share/plymouth/debian-logo.png ] && copy_real /usr/share/plymouth/debian-logo.png /usr/share/plymouth/debian-logo.png
+
+for p in /usr/sbin/plymouthd /usr/bin/plymouth /usr/lib/x86_64-linux-gnu/libply.so.5 \
+         /usr/lib/x86_64-linux-gnu/libudev.so.1 /usr/share/plymouth/themes/bnasec/bnasec.plymouth ; do
+  [ -e "${DESTDIR}${p}" ] || { echo "bnasec-plymouth-complete: VERIFY FAILED $p" >&2; FAIL=1; }
+done
+if [ "$FAIL" = "0" ]; then
+  echo "bnasec-plymouth-complete: plymouth staged OK"
+else
+  echo "bnasec-plymouth-complete: *** FAILURES ***" >&2
+fi
+exit 0

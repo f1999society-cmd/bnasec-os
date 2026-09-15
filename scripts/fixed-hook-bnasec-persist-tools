@@ -1,0 +1,48 @@
+#!/bin/sh
+# BNAsec initramfs hook: copy partitioning/formatting tools + EVERY library they
+# need into the initramfs. Explicit copy_file list (no ldd, no globs — fakechroot
+# breaks ldd resolution and globs bypass path mapping).
+PREREQ=""
+prereq() { echo "$PREREQ"; }
+case "$1" in
+  prereq) prereq; exit 0 ;;
+esac
+. /usr/share/initramfs-tools/hook-functions
+
+# binaries
+copy_file binary /usr/sbin/sfdisk /usr/sbin/sfdisk
+# partx is optional (moved between packages across releases); provisioning
+# works without it (udevadm settle + sleep cover the re-read)
+[ -e /usr/sbin/partx ] && copy_file binary /usr/sbin/partx /usr/sbin/partx
+copy_file binary /usr/sbin/mke2fs /usr/sbin/mke2fs
+# blkid lives in /usr/sbin on trixie (usrmerge); try both for safety
+if [ -e /usr/sbin/blkid ]; then
+  copy_file binary /usr/sbin/blkid /usr/sbin/blkid
+elif [ -e /usr/bin/blkid ]; then
+  copy_file binary /usr/bin/blkid /usr/bin/blkid
+fi
+copy_file binary /usr/bin/lsblk /usr/bin/lsblk
+
+# libraries (full list from ldd on sfdisk/mke2fs/blkid/lsblk/partx)
+for f in $(ls /usr/lib/x86_64-linux-gnu/libfdisk.so* \
+                /usr/lib/x86_64-linux-gnu/libsmartcols.so* \
+                /usr/lib/x86_64-linux-gnu/libblkid.so* \
+                /usr/lib/x86_64-linux-gnu/libmount.so* \
+                /usr/lib/x86_64-linux-gnu/libuuid.so* \
+                /usr/lib/x86_64-linux-gnu/libext2fs.so* \
+                /usr/lib/x86_64-linux-gnu/libcom_err.so* \
+                /usr/lib/x86_64-linux-gnu/libtinfo.so* \
+                /usr/lib/x86_64-linux-gnu/libreadline.so* \
+                /usr/lib/x86_64-linux-gnu/libselinux.so* \
+                /usr/lib/x86_64-linux-gnu/libpcre2-8.so* 2>/dev/null); do
+  copy_file binary "$f" "/usr/lib/x86_64-linux-gnu/$(basename "$f")"
+done
+
+# the provisioning script itself (belt & suspenders: also copied verbatim from
+# /etc/initramfs-tools/scripts/, but ensure it exists in the initramfs)
+if [ -f /etc/initramfs-tools/scripts/init-premount/bnasec-persist ]; then
+  copy_file binary /etc/initramfs-tools/scripts/init-premount/bnasec-persist \
+                   /scripts/init-premount/bnasec-persist
+fi
+
+exit 0

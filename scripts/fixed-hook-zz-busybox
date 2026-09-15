@@ -1,0 +1,31 @@
+#!/bin/sh
+# BNAsec: explicit busybox hook (replaces fragile zz-busybox under fakechroot).
+# Copies the busybox binary and creates applet symlinks relative to DESTDIR.
+set -e
+
+case "${1:-}" in
+  prereqs)  echo ""; exit 0;;
+esac
+
+BB=/usr/bin/busybox
+[ -x "$BB" ] || exit 0
+[ n = "$BUSYBOX" ] && exit 0
+
+mkdir -p "${DESTDIR}/bin" "${DESTDIR}/usr/bin" "${DESTDIR}/usr/sbin" "${DESTDIR}/sbin"
+cp -fL "$BB" "${DESTDIR}/usr/bin/busybox"
+
+for alias in $("$BB" --list-long); do
+  alias="${alias#/}"
+  case "$alias" in
+    usr/*) d="${DESTDIR}/${alias%/*}"; t="${alias}" ;;
+    */*)   d="${DESTDIR}/${alias%/*}"; t="${alias}" ;;
+    *)     d="${DESTDIR}/bin";        t="bin/${alias}" ;;
+  esac
+  [ -d "$d" ] || mkdir -p "$d"
+  # hardlink (not symlink): sandbox blocks some symlink() calls, and busybox
+  # resolves applets via argv[0], which works identically through hardlinks
+  [ -e "${DESTDIR}/${t}" ] || ln -f "${DESTDIR}/usr/bin/busybox" "${DESTDIR}/${t}" 2>/dev/null || \
+    ln -s /usr/bin/busybox "${DESTDIR}/${t}"
+done
+
+exit 0

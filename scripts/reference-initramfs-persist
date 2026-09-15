@@ -1,0 +1,50 @@
+#!/bin/sh
+# BNAsec: provision the whole-root persistence partition from the initramfs
+# (boot disk is idle here, so writes always land; same-boot activation)
+PREREQ=""
+prereq() { echo "$PREREQ"; }
+case "$1" in
+  prereq) prereq; exit 0 ;;
+esac
+
+[ -x /usr/sbin/sfdisk ] || exit 0
+[ -x /usr/sbin/mke2fs ] || exit 0
+
+blkid -o device -t LABEL=persistence >/dev/null 2>&1 && exit 0
+
+dev=""
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  dev=$(blkid -o device -t TYPE=iso9660 2>/dev/null | head -1)
+  [ -n "$dev" ] && break
+  sleep 1
+done
+[ -n "$dev" ] || exit 0
+
+base=$(basename "$dev")
+disk=${base%[0-9]*}
+[ -e "/sys/class/block/$disk" ] || exit 0
+rem=$(cat "/sys/class/block/$disk/removable" 2>/dev/null)
+[ "$rem" = "1" ] || exit 0
+
+total=$(cat "/sys/class/block/$disk/size")
+lastend=0
+for p in /sys/class/block/${disk}[0-9]*; do
+  [ -e "$p/start" ] || continue
+  s=$(cat "$p/start"); z=$(cat "$p/size")
+  e=$(( s + z ))
+  [ "$e" -gt "$lastend" ] && lastend=$e
+done
+start=$(( lastend + 1 ))
+size=$(( total - start - 34 ))
+[ "$size" -lt $((2*1024*1024*1024/512)) ] && exit 0
+
+pnum=$(( $(ls /sys/class/block/ | grep -c "^${disk}[0-9]") + 1 ))
+sfdisk -d "/dev/$disk" > /tmp/bnasec-sfd.dump 2>/dev/null
+printf '%s%s : start=%s, size=%s, type=8300, name="persistence"\n' "/dev/$disk" "$pnum" "$start" "$size" >> /tmp/bnasec-sfd.dump
+sfdisk -f "/dev/$disk" < /tmp/bnasec-sfd.dump >/dev/null 2>&1
+partx -a "/dev/$disk" >/dev/null 2>&1 || true
+sleep 1
+[ -b "/dev/${disk}${pnum}" ] || exit 0
+mke2fs -L persistence -q -F "/dev/${disk}${pnum}" >/dev/null 2>&1 || exit 0
+sync
+exit 0

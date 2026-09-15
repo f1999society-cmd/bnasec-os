@@ -1,0 +1,59 @@
+#!/bin/sh
+# BNAsec initramfs hook: udevd + COMPLETE dependency closure, copied as REAL
+# FILES (dereferenced) under their SONAMEs. Replaces glob/fakeroot-fragile
+# approaches after the 2026-09 rebuild lost libcrypt (dangling symlink -> udevd
+# dead -> no coldplug -> no USB -> no medium). Verifies itself at the end.
+PREREQ=""
+prereq() { echo "$PREREQ"; }
+case "$1" in
+  prereq) prereq; exit 0 ;;
+esac
+. /usr/share/initramfs-tools/hook-functions
+
+FAIL=0
+copy_real() {  # copy_real <src real file> <dest absolute path>
+  src="$1"; dst="$2"
+  if [ ! -f "$src" ]; then
+    echo "bnasec-udev-complete: MISSING SOURCE $src" >&2
+    FAIL=1; return
+  fi
+  # copy the CONTENT directly under the destination name (dereferences)
+  mkdir -p "${DESTDIR}${dst%/*}"
+  cp -fL "$src" "${DESTDIR}${dst}" || { echo "bnasec-udev-complete: COPY FAILED $src" >&2; FAIL=1; }
+}
+
+# udevadm multi-call binary (systemd-udevd is a symlink to it on usrmerged systems)
+copy_real /usr/bin/udevadm /usr/bin/udevadm
+copy_real /usr/bin/udevadm /usr/lib/systemd/systemd-udevd
+
+SH=$(ls /usr/lib/systemd/libsystemd-shared-*.so 2>/dev/null | sort | tail -1)
+[ -n "$SH" ] && copy_real "$SH" "/usr/lib/systemd/$(basename "$SH")"
+
+# udevd + libsystemd-shared closure (DT_NEEDED, resolved 2026-09)
+for lib in \
+  libblkid.so.1 libacl.so.1 libcap.so.2 libcrypt.so.1 libmount.so.1 \
+  libcrypto.so.3 libpam.so.0 libseccomp.so.2 libselinux.so.1 \
+  libm.so.6 libz.so.1 libzstd.so.1 liblzma.so.5 libbz2.so.1.0 \
+  libudev.so.1 libgpg-error.so.0 libgcrypt.so.20 libcap-ng.so.0 \
+  libpcre2-8.so.0 libffi.so.8 libxml2.so.2 libicudata.so.76 libicuuc.so.76 ; do
+  real=$(readlink -f "/usr/lib/x86_64-linux-gnu/$lib" 2>/dev/null)
+  [ -n "$real" ] && [ -f "$real" ] && copy_real "$real" "/usr/lib/x86_64-linux-gnu/$lib"
+done
+# libc + loader live in the base lib dir
+for lib in libc.so.6 ld-linux-x86-64.so.2 libdl.so.2 libpthread.so.0 librt.so.1; do
+  real=$(readlink -f "/usr/lib/x86_64-linux-gnu/$lib" 2>/dev/null) || \
+  real=$(readlink -f "/lib/x86_64-linux-gnu/$lib" 2>/dev/null)
+  [ -n "$real" ] && [ -f "$real" ] && copy_real "$real" "/usr/lib/x86_64-linux-gnu/$lib"
+done
+
+# self-verify: every critical path must EXIST in the staging dir
+for p in /usr/bin/udevadm /usr/lib/systemd/systemd-udevd /usr/lib/x86_64-linux-gnu/libcrypt.so.1 \
+         /usr/lib/x86_64-linux-gnu/libudev.so.1 /usr/lib/x86_64-linux-gnu/libblkid.so.1 ; do
+  [ -e "${DESTDIR}${p}" ] || { echo "bnasec-udev-complete: VERIFY FAILED $p" >&2; FAIL=1; }
+done
+if [ "$FAIL" = "0" ]; then
+  echo "bnasec-udev-complete: all udev deps staged OK"
+else
+  echo "bnasec-udev-complete: *** FAILURES — initramfs udev will be broken ***" >&2
+fi
+exit 0

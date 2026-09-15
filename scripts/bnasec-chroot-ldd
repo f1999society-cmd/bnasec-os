@@ -1,0 +1,32 @@
+#!/bin/sh
+# BNAsec: deterministic in-chroot ldd replacement (objdump-based).
+# Emulates `ldd` output by parsing DT_NEEDED from the ELF and resolving each
+# library against THIS root filesystem's multiarch dirs. All emitted paths are
+# chroot-relative, so hook-functions' copy_exec can copy them directly.
+# (The previous approach of invoking the dynamic loader fails under fakechroot:
+# "fakechroot: preload library not found, aborting".)
+for f in "$@"; do
+  case "$f" in
+    -*) continue ;;
+  esac
+  [ -f "$f" ] || continue
+  libs=$(objdump -p "$f" 2>/dev/null | sed -n 's/ *[A-Z_]* *NEEDED *//p')
+  for lib in $libs; do
+    case "$lib" in
+      ld-linux*)
+        if [ -e "/usr/lib64/$lib" ]; then echo "        $lib => /usr/lib64/$lib";
+        elif [ -e "/usr/lib/x86_64-linux-gnu/$lib" ]; then echo "       $lib => /usr/lib/x86_64-linux-gnu/$lib"; fi
+        continue ;;
+    esac
+    found=""
+    for d in /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu/systemd /usr/lib/systemd /usr/lib /lib /usr/lib64; do
+      if [ -e "$d/$lib" ]; then found="$d/$lib"; break; fi
+    done
+    if [ -n "$found" ]; then
+      echo "    $lib => $found (0x0)"
+    else
+      echo "    $lib => not found"
+    fi
+  done
+done
+exit 0

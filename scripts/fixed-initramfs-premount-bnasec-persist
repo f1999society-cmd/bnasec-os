@@ -1,0 +1,106 @@
+#!/bin/sh
+# BNAsec: provision whole-root persistence from the initramfs (same-boot activation)
+# Runs at init-premount, BEFORE live-boot's persistence scan. Creates a partition
+# using ALL free space on the boot USB, formats it, writes /persistence.conf (" /
+# union") so live-boot mounts the WHOLE ROOT from it on THIS very boot — no reboot
+# needed. Every step logs to /dev/console for testability.
+PREREQ=""
+prereq() { echo "$PREREQ"; }
+case "$1" in
+  prereq) prereq; exit 0 ;;
+esac
+
+# guard: only run during a REAL early boot from the initramfs.
+# - /proc/cmdline exists in the initramfs (and, unfortunately, via the host
+#   when running under fakechroot during the initrd build)
+# - /init exists ONLY in a real initramfs environment — decisive guard
+[ -e /proc/cmdline ] || exit 0
+[ -e /init ] || exit 0
+
+log() { echo "[bnasec-persist-early] $*" > /dev/console 2>/dev/null || true; }
+
+# hard requirements — if any tool is missing, bail out BEFORE touching anything
+have() { command -v "$1" >/dev/null 2>&1 || [ -x "$1" ]; }
+for t in sfdisk mke2fs blkid mount; do
+  have "$t" || { log "missing tool $t — skipping persistence provisioning"; exit 0; }
+done
+
+blkid -o device -t LABEL=persistence >/dev/null 2>&1 && { log "persistence partition already exists — skipping provisioning"; exit 0; }
+
+# make sure USB storage is up, then wait (up to 30s) for the boot medium
+modprobe usb-storage 2>/dev/null || true
+modprobe uas 2>/dev/null || true
+dev=""
+i=0
+while [ "$i" -lt 15 ]; do
+  dev=$(blkid -o device -t TYPE=iso9660 2>/dev/null | head -1)
+  [ -n "$dev" ] && break
+  udevadm settle --timeout=2 2>/dev/null || sleep 2
+  i=$((i+1))
+done
+[ -n "$dev" ] || { log "no iso9660 boot medium found — skipping persistence provisioning"; exit 0; }
+log "boot medium: $dev"
+
+base=$(basename "$dev")
+disk=${base%[0-9]*}
+[ -e "/sys/class/block/$disk" ] || { log "no disk node for $disk — skipping"; exit 0; }
+rem=$(cat "/sys/class/block/$disk/removable" 2>/dev/null)
+[ "$rem" = "1" ] || { log "/dev/$disk is not removable — skipping persistence setup"; exit 0; }
+
+# sysfs sizes are ALWAYS in 512B sectors, regardless of the real sector size
+total=$(cat "/sys/class/block/$disk/size")
+lastend=0
+for p in /sys/class/block/${disk}[0-9]*; do
+  [ -e "$p/start" ] || continue
+  s=$(cat "$p/start"); z=$(cat "$p/size")
+  e=$(( s + z ))
+  [ "$e" -gt "$lastend" ] && lastend=$e
+done
+log "disk 512B-sectors: $total, last partition ends at: $lastend"
+
+# align start up to a 1MiB boundary for cleanliness
+start=$(( ((lastend + 2047) / 2048) * 2048 ))
+[ "$start" -le "$lastend" ] && start=$(( lastend + 1 ))
+size=$(( total - start - 100 ))
+if [ "$size" -lt $((2*1024*1024*1024/512)) ]; then
+  log "only $((size/2048))MiB free after sector $start — need >=2GiB, skipping"
+  exit 0
+fi
+# SAFETY: refuse to touch the head of the disk or overlap anything
+if [ "$start" -le 2048 ] || [ "$start" -le "$lastend" ]; then
+  log "computed start=$start is unsafe (lastend=$lastend) — ABORT, no changes made"
+  exit 0
+fi
+
+pnum=1
+for p in /sys/class/block/${disk}[0-9]*; do
+  [ -e "$p/dev" ] || continue
+  n=$(basename "$p"); n=${n#$disk}; case "$n" in (*[!0-9]*|'') continue ;; esac
+  [ "$n" -ge "$pnum" ] && pnum=$(( n + 1 ))
+done
+
+log "creating partition ${disk}${pnum}: start=$start sectors=$size ($((size/2048))MiB)"
+sfdisk -d "/dev/$disk" > /tmp/bnasec-sfd.dump 2>/dev/null
+printf '%s%s : start=%s, size=%s, type=8300, name="persistence"\n' "/dev/$disk" "$pnum" "$start" "$size" >> /tmp/bnasec-sfd.dump
+sfdisk -f "/dev/$disk" < /tmp/bnasec-sfd.dump >/dev/null 2>&1
+rc=$?
+[ "$rc" -eq 0 ] || log "sfdisk exit=$rc — checking for the partition node anyway"
+partx -a "/dev/$disk" >/dev/null 2>&1 || true
+udevadm settle --timeout=10 2>/dev/null || true
+sleep 1
+[ -b "/dev/${disk}${pnum}" ] || { log "partition node /dev/${disk}${pnum} missing — ABORT (disk untouched by mkfs)"; exit 0; }
+
+log "formatting /dev/${disk}${pnum} as ext4 labeled persistence ..."
+mke2fs -L persistence -q -F "/dev/${disk}${pnum}" >/dev/null 2>&1 || { log "mke2fs FAILED — ABORT"; exit 0; }
+
+mkdir -p /mnt/bnasec-persist
+if mount -t ext4 "/dev/${disk}${pnum}" /mnt/bnasec-persist 2>/dev/null; then
+  printf '/ union\n' > /mnt/bnasec-persist/persistence.conf
+  sync
+  umount /mnt/bnasec-persist 2>/dev/null || true
+  log "persistence.conf written — whole-root persistence activates THIS boot"
+else
+  log "could not mount new partition to write persistence.conf — systemd fallback will handle it"
+fi
+sync
+exit 0

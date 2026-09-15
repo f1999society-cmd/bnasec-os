@@ -1,0 +1,102 @@
+#!/bin/bash
+# BNAsec fallback: whole-root persistence provisioning (runs in the real system)
+# Hardened after the 2026-09 forensic rebuild:
+#   - requires every tool it needs up front (no silent missing-tool paths)
+#   - partition layout comes from `sfdisk -d` (authoritative), never from a
+#     failed/empty lsblk
+#   - refuses to run if the table is unreadable or has no partitions
+#   - never formats a partition that existed before this script ran
+#   - writes /persistence.conf ("/ union") so live-boot activates whole-root
+#     persistence on the next boot
+LOG=/run/bnasec-persist-setup.log
+exec > >(tee "$LOG") 2>&1
+msg() { echo "[bnasec-persist] $*"; }
+cmsg() { echo "[bnasec-persist] $*" > /dev/console 2>/dev/null; msg "$@"; }
+
+# 0) hard requirements — abort BEFORE any change if a tool is missing
+need() { command -v "$1" >/dev/null 2>&1 || { cmsg "missing tool '$1' — aborting, no changes made"; exit 0; }; }
+for t in sfdisk mkfs.ext4 findmnt lsblk blkid blockdev; do need "$t"; done
+need mount; need umount
+
+# 1) already active? done.
+if findmnt -n /run/live/persistence >/dev/null 2>&1; then
+  cmsg "persistence already active"
+  exit 0
+fi
+
+src=$(findmnt -nro SOURCE /run/live/medium 2>/dev/null) || { cmsg "no boot medium found"; exit 0; }
+case "$src" in
+  /dev/sr*|/dev/loop*) cmsg "optical/loop medium, skipping persistence setup"; exit 0 ;;
+esac
+dev=$(lsblk -nro PKNAME "$src" 2>/dev/null | head -1)
+[ -n "$dev" ] || { cmsg "cannot resolve boot device from $src — skipping"; exit 0; }
+disk="/dev/$dev"
+
+if [ "$(cat "/sys/class/block/$dev/removable" 2>/dev/null)" != "1" ]; then
+  cmsg "$disk is not removable, skipping persistence setup"
+  exit 0
+fi
+
+# 2) authoritative partition table from sfdisk
+if ! sfdisk -d "$disk" > /tmp/bnasec-sfd.dump 2>/tmp/bnasec-sfd.err; then
+  cmsg "sfdisk -d failed ($(cat /tmp/bnasec-sfd.err | head -1)) — aborting, no changes made"
+  exit 0
+fi
+grep -qE "^label" /tmp/bnasec-sfd.dump || { cmsg "unreadable partition table — aborting"; exit 0; }
+maxnum=$(grep -E "^${disk}[0-9]+" /tmp/bnasec-sfd.dump | sed -E "s|^${disk}([0-9]+).*|\1|" | sort -n | tail -1)
+maxnum=${maxnum:-0}
+if [ "$maxnum" -lt 1 ]; then
+  cmsg "no partitions detected on $disk — refusing to guess, aborting"
+  exit 0
+fi
+
+# 3) compute the gap AFTER the last existing partition (in 512B sectors)
+total=$(( $(blockdev --getsize64 "$disk" 2>/dev/null || echo 0) / 512 ))
+[ "$total" -gt 0 ] || { cmsg "cannot read disk size — aborting"; exit 0; }
+lastend=$(grep -E "^${disk}[0-9]+" /tmp/bnasec-sfd.dump | sed -E 's/,/ /g; s/=[[:space:]]+/=/g' | awk '
+  { n=split($0,a," "); s=0; z=0; for(i=1;i<=n;i++){ if(a[i] ~ /^start=/){s=substr(a[i],7)+0} if(a[i] ~ /^size=/){z=substr(a[i],6)+0} } e=s+z; if(e>m)m=e } END{print m+0}')
+start=$(( ((lastend + 2047) / 2048) * 2048 ))
+[ "$start" -le "$lastend" ] && start=$(( lastend + 1 ))
+size=$(( total - start - 100 ))
+gapMiB=$(( size / 2048 ))
+if [ "$size" -lt $((2*1024*1024*1024/512)) ]; then
+  cmsg "only ${gapMiB}MiB free on $disk — need >=2GiB, skipping"
+  exit 0
+fi
+if [ "$start" -le 2048 ] || [ "$start" -le "$lastend" ]; then
+  cmsg "computed start=$start unsafe (lastend=$lastend) — ABORT, no changes made"
+  exit 0
+fi
+
+pnum=$(( maxnum + 1 ))
+cmsg "creating ${gapMiB}MiB persistence partition ${disk}${pnum} (start=$start, sectors=$size) ..."
+
+# 4) append the new partition and rewrite the table
+printf '%s%s : start=%s, size=%s, type=8300, name="persistence"\n' "$disk" "$pnum" "$start" "$size" >> /tmp/bnasec-sfd.dump
+sfdisk -f "$disk" < /tmp/bnasec-sfd.dump > /dev/null 2>&1 || cmsg "sfdisk rc=$? — verifying node anyway"
+partx -a "$disk" 2>/dev/null || true
+udevadm settle --timeout=10 2>/dev/null || true
+sleep 1
+
+p2="$disk$pnum"
+if [ ! -b "$p2" ]; then
+  cmsg "partition node $p2 missing — continuing without persistence (disk layout may still have changed)"
+  exit 0
+fi
+
+# 5) format, write persistence.conf, activate on next boot
+cmsg "formatting $p2 as ext4 ..."
+mkfs.ext4 -L persistence -q -F "$p2" || { cmsg "mkfs.ext4 failed"; exit 0; }
+mkdir -p /run/bnasec-pmnt
+if mount "$p2" /run/bnasec-pmnt 2>/dev/null; then
+  printf '/ union\n' > /run/bnasec-pmnt/persistence.conf
+  sync
+  umount /run/bnasec-pmnt 2>/dev/null || true
+  cmsg "persistence ready ($p2, /persistence.conf written) — rebooting to activate ..."
+  sleep 3
+  systemctl reboot --no-wall 2>/dev/null || reboot -f
+else
+  cmsg "persistence created but could not write persistence.conf — rebooting anyway ..."
+  sleep 3
+  systemctl reboot --no-wall 2>/dev/null || reboot -f
+fi
