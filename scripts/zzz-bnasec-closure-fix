@@ -1,0 +1,148 @@
+#!/bin/sh
+# BNAsec initramfs hook: RECURSIVE dependency closure for all early-boot
+# binaries. Runs last (zzz- prefix). For each binary: copy as REAL file, then
+# walk DT_NEEDED via objdump and copy every lib from the rootfs multiarch
+# dirs, RECURSIVELY (libs can need libs). Self-verifies at the end.
+PREREQ=""
+prereq() { echo "$PREREQ"; }
+case "$1" in
+  prereq) prereq; exit 0 ;;
+esac
+. /usr/share/initramfs-tools/hook-functions
+
+FAIL=0
+ALREADY=""
+
+# copy_file_real <src> <dst-abs>: dereferencing copy
+copy_file_real() {
+  src="$1"; dst="$2"
+  [ -f "$src" ] || { echo "zzz-closure: MISSING SOURCE $src" >&2; FAIL=1; return 1; }
+  mkdir -p "${DESTDIR}${dst%/*}"
+  cp -fL "$src" "${DESTDIR}${dst}" 2>/dev/null || { echo "zzz-closure: COPY FAILED $src" >&2; FAIL=1; return 1; }
+  return 0
+}
+
+# resolve_libs <abs-path-in-rootfs>: recursively copy DT_NEEDED closure
+# shellcheck disable=SC2120
+resolve_closure() {
+  bin="$1"
+  [ -f "$bin" ] || return 0
+  case " $ALREADY " in *" $bin "*) return 0 ;; esac
+  ALREADY="$ALREADY $bin"
+  deps=$(/usr/bin/objdump -p "$bin" 2>/dev/null | awk '/NEEDED/{print $2}')
+  for d in $deps; do
+    # search dirs that ld.so would use inside the rootfs
+    real=""
+    for base in /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /usr/lib /lib /usr/lib/systemd /usr/lib/x86_64-linux-gnu/systemd; do
+      if [ -e "$base/$d" ]; then
+        real=$(readlink -f "$base/$d" 2>/dev/null)
+        [ -n "$real" ] && [ -f "$real" ] && break
+        real=""
+      fi
+    done
+    if [ -n "$real" ]; then
+      # destination mirrors the SONAME lookup dirs (loader searches the
+      # same set inside the initramfs)
+      copy_file_real "$real" "/usr/lib/x86_64-linux-gnu/$d" || \
+        copy_file_real "$real" "/lib/x86_64-linux-gnu/$d"
+      # recurse: the lib itself may have deps
+      resolve_closure "$real"
+    else
+      echo "zzz-closure: UNRESOLVED DEP $d (needed by $bin)" >&2
+    fi
+  done
+}
+
+# 1) the binaries the early boot MUST run
+# NOTE: never cp -f ONTO a busybox applet hardlink — cp truncates the shared
+# inode and corrupts the whole busybox applet group. Unlink first, then copy.
+copy_file_real /usr/bin/busybox       /usr/bin/busybox
+copy_file_real /usr/bin/udevadm       /usr/bin/udevadm
+copy_file_real /usr/bin/udevadm       /usr/lib/systemd/systemd-udevd
+copy_file_real /usr/sbin/plymouthd    /usr/sbin/plymouthd
+copy_file_real /usr/bin/plymouth      /usr/bin/plymouth
+# real mount/umount/blkid replace the busybox applets at the same paths
+for pair in "/usr/bin/mount /bin/mount" "/usr/bin/umount /bin/umount" "/usr/sbin/blkid /sbin/blkid"; do
+  src=${pair% *}; dst=${pair#* }
+  rm -f "${DESTDIR}${dst}"
+  copy_file_real "$src" "$dst"
+done
+# systemd-shared where RUNPATH expects it (both spellings, harmless dupes)
+for sh in /usr/lib/x86_64-linux-gnu/systemd/libsystemd-shared-*.so; do
+  [ -e "$sh" ] || continue
+  copy_file_real "$sh" "/usr/lib/x86_64-linux-gnu/systemd/$(basename "$sh")"
+  copy_file_real "$sh" "/usr/lib/systemd/$(basename "$sh")"
+done
+# klibc run-init (the switch_root tool init execs at the end)
+for k in /usr/lib/klibc/bin/run-init /usr/lib/klibc/bin/*; do
+  [ -e "$k" ] || continue
+  case "$k" in
+    */run-init|*/kinit|*/nfsmount|*/resume) copy_file_real "$k" "$k" ;;
+  esac
+done
+[ -e /usr/lib/klibc/bin/run-init ] && for kl in /usr/lib/klibc-*.so; do
+  [ -e "$kl" ] && copy_file_real "$kl" "$kl"
+done
+
+# 2) full recursive closures
+resolve_closure /usr/bin/busybox
+resolve_closure /usr/bin/udevadm
+resolve_closure /usr/sbin/plymouthd
+resolve_closure /usr/bin/plymouth
+resolve_closure /usr/sbin/blkid
+resolve_closure /bin/mount
+resolve_closure /bin/umount
+
+# 3) self-verify: binaries exist AND are non-empty; every closure lib exists
+for p in /usr/bin/busybox /usr/bin/udevadm /usr/lib/systemd/systemd-udevd \
+         /usr/sbin/plymouthd /usr/bin/plymouth /usr/sbin/blkid /bin/mount /bin/umount; do
+  [ -s "${DESTDIR}${p}" ] || { echo "zzz-closure: VERIFY EMPTY/MISSING $p" >&2; FAIL=1; }
+done
+for b in /usr/bin/udevadm /usr/sbin/plymouthd /usr/bin/plymouth /bin/mount /usr/sbin/blkid; do
+  src=""
+  case "$b" in
+    /bin/mount) src=/usr/bin/mount ;;
+    *) src="$b" ;;
+  esac
+  [ -f "$src" ] || continue
+  for d in $(/usr/bin/objdump -p "$src" 2>/dev/null | awk '/NEEDED/{print $2}'); do
+    { [ -e "${DESTDIR}/usr/lib/x86_64-linux-gnu/$d" ] || [ -e "${DESTDIR}/lib/x86_64-linux-gnu/$d" ] || [ -e "${DESTDIR}/usr/lib/systemd/$d" ] || [ -e "${DESTDIR}/usr/lib/x86_64-linux-gnu/systemd/$d" ]; } || { echo "zzz-closure: VERIFY LIB MISSING $d for $b" >&2; FAIL=1; }
+  done
+done
+# busybox data really staged (the 0-byte hardlink corruption sentinel)
+SZ=$(stat -c %s "${DESTDIR}/usr/bin/busybox" 2>/dev/null || echo 0)
+if [ "$SZ" -lt 500000 ]; then
+  echo "zzz-closure: busybox corrupted ($SZ bytes) — restoring fresh copy" >&2
+  rm -f "${DESTDIR}/usr/bin/busybox"
+  copy_file_real /usr/bin/busybox /usr/bin/busybox
+  # re-create every applet link from scratch
+  for alias in $(/usr/bin/busybox --list-long); do
+    alias="${alias#/}"
+    case "$alias" in
+      usr/*) t="$alias" ;;
+      */*)   t="$alias" ;;
+      *)     t="bin/${alias}" ;;
+    esac
+    d="${DESTDIR}/${t%/*}"
+    mkdir -p "$d"
+    [ "${DESTDIR}/${t}" = "${DESTDIR}/usr/bin/busybox" ] && continue
+    rm -f "${DESTDIR}/${t}"
+    ln -f "${DESTDIR}/usr/bin/busybox" "${DESTDIR}/${t}" 2>/dev/null || \
+      ln -s /usr/bin/busybox "${DESTDIR}/${t}"
+  done
+  SZ=$(stat -c %s "${DESTDIR}/usr/bin/busybox" 2>/dev/null || echo 0)
+  # real mount/umount/blkid got clobbered by the re-link: restore them too
+  for pair in "/usr/bin/mount /bin/mount" "/usr/bin/umount /bin/umount" "/usr/sbin/blkid /sbin/blkid"; do
+    src=${pair% *}; dst=${pair#* }
+    rm -f "${DESTDIR}${dst}"
+    copy_file_real "$src" "$dst"
+  done
+fi
+[ "$SZ" -gt 500000 ] || { echo "zzz-closure: busybox STILL too small ($SZ bytes)" >&2; FAIL=1; }
+
+if [ "$FAIL" = "0" ]; then
+  echo "zzz-closure: all closures staged OK (busybox=$SZ bytes)"
+else
+  echo "zzz-closure: *** FAILURES — early boot will be broken ***" >&2
+fi
+exit 0
