@@ -210,3 +210,17 @@ Work Log:
 
 Stage Summary:
 - v2.1.0 FULLY VERIFIED (BIOS+UEFI+password login+zram active); release v2.1.0 upload next; honest note: login stops casual access but persistence partition itself is unencrypted (LUKS = future v2.2)
+
+---
+Task ID: 11-v210-release
+Agent: main
+Task: Publish v2.1.0 release + push all build tooling
+
+Work Log:
+- Release v2.1.0 (id 390109937, tag v2.1.0) — first upload attempt OOM-killed (curl --data-binary buffers 1.93GB in RAM); FIXED with streaming upload (-T): ISO 1,936,142,336 bytes state=uploaded + sha256 89 bytes
+- Release body includes credentials (bna/bnasec), changelog, QEMU verification evidence, honest security note (login = casual protection; LUKS = v2.2 candidate)
+- All v2.1 tooling committed (0576c97 + this): phaseA/assets/customize/finalize/squash/verify-initrd/iso/smoke/release scripts
+- download/ carries hardlinked ISO + .sha256 for local pickup
+
+Stage Summary:
+- v2.1.0 LIVE on GitHub Releases; user must reflash to get: secure login + firefox + anti-freeze zram + new splash/wallpapers; token revoke reminder due in final reply
