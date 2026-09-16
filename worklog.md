@@ -188,3 +188,25 @@ Work Log:
 
 Stage Summary:
 - One-line fix path live (no paste mangling possible); script committed to repo; reset #4 fully recovered (ISO re-download deferred — not needed for this task)
+
+---
+Task ID: 11-v210-build
+Agent: main
+Task: Build BNAsec v2.1.0 — Firefox, NO autologin (secure login), 1.jpg boot splash w/ animation, 2.jpg default + 3.jpg optional wallpapers, baked-in zram/perf anti-freeze stack, all 6 tools, "no errors"
+
+Work Log:
+- Resumed mid-pipeline after context loss: v21 scripts (phaseA/customize/assets/finalize) already drafted untracked; user images 1.jpg/2.jpg/3.jpg present in upload/; rootfs already customized (firefox-esr in, autologin off, wallpapers, plymouth frames, zram unit, schemas compiled)
+- Verified new initramfs (130MB) side-by-side vs v2.0.0 known-good initrd: identical structure (892 ko modules, usr/bin/busybox, plymouthd + two-step/text/details/label-pango/renderers, persist premount + sfdisk/mke2fs/blkid) + new theme assets; wrote scripts/bnasec-v21-verify-initrd.py (finalize's old checks had 4 false-fail patterns: bin/busybox vs usr/bin/busybox, label.so vs label-pango.so, iso9660.ko vs isofs.ko, persist-setup never in initrd even in v2.0.0)
+- CONFIRMED zram.ko.xz EXISTS (kernel 6.12 moved it to drivers/block/zram/) + bfq.ko.xz + isofs.ko.xz all present in rootfs; plymouth theme file byte-structure identical to v2.0.0's (only logo PNG differs)
+- Rebuilt squashfs (zstd -6 1M, 1,785,323,520 bytes): 17/17 suid bits, firefox ELF, both wallpapers, full plymouth theme, zram+firstboot enabled, autologin=false, zram+bfq modules, README, wpscan, p10k — ALL VERIFIED via unsquashfs -lls
+- SECURITY: added live-config.noautologin to ALL grub entries (critical: /lib/live/config/0080-gdm3 force-enables autologin at every boot unless this param present; daemon.conf alone would be overridden)
+- Built hybrid ISO (proven v2.0.0 recipe): 1,936,142,336 bytes, MBR boot + El Torito BIOS + 0xEF ESP + GPT ISOHybrid partitions; volid BNASEC
+- QEMU VERIFICATION (all synchronous):
+  * BIOS: GRUB loads -> plymouth-start.service OK -> bnasec-persist-early ran -> zram0 added 4G + "Adding 4194300k swap on /dev/zram0. Priority:100" (ANTI-FREEZE ACTIVE AT BOOT) -> bnasec-firstboot.service OK -> GDM LOGIN SCREEN at t240 (NO autologin) -> injected keystrokes: password bnasec typed at greeter -> GNOME SESSION UP at t345 (login WORKS)
+  * UEFI (OVMF): GRUB themed menu -> GDM LOGIN SCREEN at t200 (no autologin)
+  * black plymouth window in QEMU shots = stdvga artifact (v2.0.0 identical; theme structure proven + plymouth-start confirms service)
+- sha256 836376879e8f276f114b4d18320ab1995e471380f5ab8a63e4f7f2c1450b82ce; ISO + sha hardlinked into download/
+- Login: bna / bnasec (README on Desktop tells user to change it); wallpapers: bnasec-wave.jpg (2.jpg) default, bnasec-red-moon.jpg (3.jpg) selectable in Settings via gnome-background-properties XML
+
+Stage Summary:
+- v2.1.0 FULLY VERIFIED (BIOS+UEFI+password login+zram active); release v2.1.0 upload next; honest note: login stops casual access but persistence partition itself is unencrypted (LUKS = future v2.2)
