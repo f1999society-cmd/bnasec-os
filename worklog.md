@@ -172,3 +172,19 @@ Work Log:
 Stage Summary:
 - GitHub Release verified carrying sudo-fixed ISO; user given consolidated 3-step repair (sudo+group fix at boot, perf block on desktop, diagnostics back to us)
 - Repo up to date (a99db65); no code changes this turn beyond worklog sync
+
+---
+Task ID: 10-perf-fix-script
+Agent: main
+Task: User paste of zram heredoc failed (zsh "structure needs cleaning"); diagnostics show 3.7GB RAM + 0 swap — deliver one-line downloadable fix
+
+Work Log:
+- User pasted FIX 2 block; zsh mangled multi-line heredoc paste (leading 's' dropped -> broken heredoc -> parse error). Decision: stop giving long paste blocks; ship a script instead
+- User diagnostics: 3.7Gi RAM / 0B swap (confirms freeze cause: memory exhaustion with no swap -> GNOME wait/force-quit dialogs), 57G persistence 4% used (plenty), 4 cores (fine), dmesg needs sudo (dmesg_restrict)
+- Wrote repo/scripts/bnasec-fix-all.sh — idempotent one-shot: A) 17 setuid bits + bna sudo group + home ownership, B) zram systemd unit (zstd 4G prio 100) + enable --now, C) sysctl (swappiness=60, vfs_cache_pressure=50, dirty_background=16M, dirty=128M), D) BFQ (modules-load + udev rule + live apply), E) system-wide dconf animations off; ends with free -h verification
+- SANDBOX RESET #4 mid-task (4th reset; only download/skills/upload survived) — re-cloned repo (HEAD 0513293 intact), re-created token file
+- Published script as PUBLIC gist 50df839cd464676594359bc270626916 (user's OS has network; private repo raw would need auth). Verified: curl of raw URL = byte-identical + sh -n syntax OK
+- User one-liner: curl -fsSL https://gist.githubusercontent.com/f1999society-cmd/50df839cd464676594359bc270626916/raw/bnasec-fix-all.sh -o /tmp/fix.sh || wget -qO /tmp/fix.sh <same>; sudo sh /tmp/fix.sh
+
+Stage Summary:
+- One-line fix path live (no paste mangling possible); script committed to repo; reset #4 fully recovered (ISO re-download deferred — not needed for this task)
