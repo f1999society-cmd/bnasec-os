@@ -1,0 +1,9 @@
+[Unit]
+Description=BNAsec automated demo launcher (demo boot mode only)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/bnasec-demo
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,27 @@
+[org/gnome/desktop/interface]
+color-scheme='prefer-dark'
+gtk-theme='Adwaita-dark'
+enable-hot-corners=false
+
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/bnasec/bnasec-wave.jpg'
+picture-uri-dark='file:///usr/share/backgrounds/bnasec/bnasec-wave.jpg'
+picture-options='zoom'
+
+[org/gnome/desktop/screensaver]
+picture-uri='file:///usr/share/backgrounds/bnasec/bnasec-wave.jpg'
+lock-enabled=false
+
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-type='nothing'
+sleep-inactive-battery-type='nothing'
+idle-dim=false
+
+[org/gnome/desktop/session]
+idle-delay=uint32 0
+
+[org/gnome/desktop/privacy]
+remember-recent-files=false
+
+[org/gnome/desktop/notifications]
+show-in-lock-screen=false

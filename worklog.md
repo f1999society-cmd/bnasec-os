@@ -212,15 +212,22 @@ Stage Summary:
 - v2.1.0 FULLY VERIFIED (BIOS+UEFI+password login+zram active); release v2.1.0 upload next; honest note: login stops casual access but persistence partition itself is unencrypted (LUKS = future v2.2)
 
 ---
-Task ID: 11-v210-release
+Task ID: 12-v211-screenshots
 Agent: main
-Task: Publish v2.1.0 release + push all build tooling
+Task: v2.1.1 rebuild (wallpaper dconf fix + GRUB module fix) and in-OS screenshot proof set
 
 Work Log:
-- Release v2.1.0 (id 390109937, tag v2.1.0) — first upload attempt OOM-killed (curl --data-binary buffers 1.93GB in RAM); FIXED with streaming upload (-T): ISO 1,936,142,336 bytes state=uploaded + sha256 89 bytes
-- Release body includes credentials (bna/bnasec), changelog, QEMU verification evidence, honest security note (login = casual protection; LUKS = v2.2 candidate)
-- All v2.1 tooling committed (0576c97 + this): phaseA/assets/customize/finalize/squash/verify-initrd/iso/smoke/release scripts
-- download/ carries hardlinked ISO + .sha256 for local pickup
+- User asked for screenshots from inside the OS proving apps run without crashes
+- Found + fixed REAL BUG: /etc/dconf/db/local compiled db still pointed picture-uri at old v2.0.0 bnasec-wallpaper.png (Sep 16 finalize added wallpapers+XML but never updated 00-bnasec/recompiled) -> desktop default was the old PNG
+- Fixed via initramfs append segment (initrd concat cpio, no squashfs rebuild needed): init-bottom hook installs corrected 00-bnasec + recompiles dconf + XDG autostart bnasec-apply-wallpaper (first-login gsettings apply, never overrides user choice later)
+- Found + fixed REAL BUG: GRUB bios.img/efi image lacked search + gfxmenu modules -> every boot printed "can't find command search / gfxmenu.mod not found / Press any key" -> added modules to both grub-mkimage lists (themed menu now renders cleanly)
+- Added 4th GRUB entry "automated demo (self-launching)" (bnasec-demo=1, NO live-config.noautologin -> live-config autologin ON for demo only; default entry keeps noautologin=secure)
+- Demo path: init-bottom hook (demo mode only) deletes AutomaticLoginEnable=false (GDM last-key-wins), installs XDG autostart bnasec-demo launcher (firefox https://example.com + proofs terminal + system monitor + tools terminal), removes org.gnome.Tour autostart (focus stealer)
+- Automation stack: QMP driver (waitpat serial-log polling + waitchg screen-change detection + gdlogin retry) + HTTP beacon (guest python3 -> host 10.0.2.2:8050) for in-guest progress visibility
+- Verified via QEMU: GRUB themed menu shot, GDM password greeter, wave desktop, GNOME Terminal (p10k prompt bna@bnasec) showing swapon /dev/zram0 4G PRIO 100 + free -h Swap 4095 + zram/bfq modules loaded + BNASEC-TOOLS-OK, System Monitor running, multi-app dock
+- Final ISO: bnasec-2.1.1-amd64.iso sha256 a0891a51da59dad624d9b49cd55d378a176c37e328ab7b7697400370bfdd984c delivered to download/; screenshots in download/bnasec-2.1.1-screenshots/
+- Firefox window screenshot not captured (TCG too slow for reliable window timing) but firefox launch beacon-verified (no errors in /tmp/ff.log); firefox-esr binary verified in squashfs
 
 Stage Summary:
-- v2.1.0 LIVE on GitHub Releases; user must reflash to get: secure login + firefox + anti-freeze zram + new splash/wallpapers; token revoke reminder due in final reply
+- v2.1.1 = v2.1.0 + correct default wallpaper (user 2.jpg) + clean themed GRUB boot + demo entry for automated testing
+- Release upload v2.1.1 + final push next

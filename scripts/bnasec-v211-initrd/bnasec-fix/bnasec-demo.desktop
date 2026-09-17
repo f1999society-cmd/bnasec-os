@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=BNAsec Demo Launcher
+Comment=Automated app launcher for the demo boot entry
+Exec=/usr/local/sbin/bnasec-demo
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+Categories=System;

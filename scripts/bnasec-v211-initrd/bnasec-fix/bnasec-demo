@@ -1,0 +1,36 @@
+#!/bin/sh
+# BNAsec automated demo launcher — active ONLY when booted with bnasec-demo=1.
+# Runs inside the user's systemd --user session. Progress + app diagnostics are
+# reported to the serial console via sudo (bna is in the sudo group).
+(
+  beacon() { python3 -c "import urllib.request,sys; urllib.request.urlopen('http://10.0.2.2:8050/'+sys.argv[1], timeout=2)" "$1" 2>/dev/null; }
+  postlog() { python3 -c "import urllib.request,sys; d=open(sys.argv[2],'rb').read()[:900]; r=urllib.request.Request('http://10.0.2.2:8050/'+sys.argv[1], data=d); urllib.request.urlopen(r, timeout=3)" "$1" "$2" 2>/dev/null; }
+  beacon stage-start
+  sleep 8
+  W="file:///usr/share/backgrounds/bnasec/bnasec-wave.jpg"
+  gsettings set org.gnome.desktop.background picture-uri "$W" 2>/dev/null
+  gsettings set org.gnome.desktop.background picture-uri-dark "$W" 2>/dev/null
+  gsettings set org.gnome.desktop.background picture-uri "$W" 2>/dev/null
+  gsettings set org.gnome.desktop.background picture-uri-dark "$W" 2>/dev/null
+  gsettings set org.gnome.desktop.screensaver picture-uri "$W" 2>/dev/null
+  beacon stage-wallpaper
+  sleep 4
+  beacon stage-firefox-launch
+  nohup firefox --new-window https://example.com >/tmp/ff.log 2>&1 &
+  sleep 25
+  beacon stage-firefox-check
+  postlog fflog /tmp/ff.log
+  python3 -c "import urllib.request; urllib.request.urlopen('http://10.0.2.2:8050/proc-'+open('/proc/loadavg').read().strip(), timeout=2)" 2>/dev/null
+  sleep 35
+  beacon stage-terminal-launch
+  nohup gnome-terminal -- bash -c 'free -h; echo; systemctl is-active bnasec-zram.service; echo; firefox --version; echo; nmap --version 2>&1 | head -n 2; echo; uname -r; uptime; echo BNASEC-ALL-OK; exec bash' >/tmp/gt.log 2>&1 &
+  sleep 20
+  beacon stage-sysmon-launch
+  nohup gnome-system-monitor >/tmp/gsm.log 2>&1 &
+  sleep 30
+  beacon stage-tools-launch
+  nohup gnome-terminal -- bash -c 'swapon --show; echo; free -m; echo; lsmod | grep -E "^zram|^bfq"; echo BNASEC-TOOLS-OK; exec bash' >/tmp/gt2.log 2>&1 &
+  sleep 2
+  beacon stage-all-launched
+) >/dev/null 2>&1 &
+exit 0

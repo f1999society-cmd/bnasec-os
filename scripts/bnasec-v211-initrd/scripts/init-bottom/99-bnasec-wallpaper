@@ -1,0 +1,41 @@
+#!/bin/sh
+# BNAsec v2.1.1 init-bottom hook — runs after live overlay is mounted at ${rootmnt}.
+# Installs: (1) XDG autostart entry + session script that applies the user's
+# 2.jpg "wave" wallpaper on first login, (2) corrected dconf keyfile + recompiled
+# system db so the system-wide default is right from the first boot.
+F=/bnasec-fix
+[ -d "$F" ] || exit 0
+[ -n "$rootmnt" ] && [ -d "$rootmnt/etc" ] || exit 0
+{ echo "bnasec-hook: start"; grep -o "bnasec-demo=1" /proc/cmdline || echo "bnasec-hook: no demo param"; } > /dev/ttyS0 2>&1 || true
+
+cp "$F/bnasec-apply-wallpaper"      "$rootmnt/usr/local/sbin/" 2>/dev/null
+[ -f "$rootmnt/usr/local/sbin/bnasec-apply-wallpaper" ] && chmod 755 "$rootmnt/usr/local/sbin/bnasec-apply-wallpaper" 2>/dev/null
+cp "$F/bnasec-wallpaper.desktop"    "$rootmnt/etc/xdg/autostart/" 2>/dev/null
+
+if [ -d "$rootmnt/etc/dconf/db/local.d" ] && [ -f "$F/00-bnasec" ]; then
+  cp "$F/00-bnasec" "$rootmnt/etc/dconf/db/local.d/00-bnasec" 2>/dev/null
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 20 chroot "$rootmnt" /usr/bin/dconf update >/dev/null 2>&1 || true
+  else
+    chroot "$rootmnt" /usr/bin/dconf update >/dev/null 2>&1 || true
+  fi
+fi
+
+# --- automated demo mode: only when booted with bnasec-demo=1 (GRUB demo entry) ---
+if grep -q "bnasec-demo=1" /proc/cmdline 2>/dev/null; then
+  # remove the baked-in autologin=false so live-config's insert wins (GDM: last key wins)
+  sed -i '/^AutomaticLoginEnable=false/d' "$rootmnt/etc/gdm3/daemon.conf" 2>/dev/null || true
+  { echo "bnasec-hook: demo branch; daemon.conf now:"; grep -n "Automatic" "$rootmnt/etc/gdm3/daemon.conf"; } > /dev/ttyS0 2>&1 || true
+  cp "$F/bnasec-demo" "$rootmnt/usr/local/sbin/bnasec-demo" 2>/dev/null
+  [ -f "$rootmnt/usr/local/sbin/bnasec-demo" ] && chmod 755 "$rootmnt/usr/local/sbin/bnasec-demo" 2>/dev/null
+  if [ -d "$rootmnt/usr/local/lib/systemd/user" ] || mkdir -p "$rootmnt/usr/local/lib/systemd/user" 2>/dev/null; then
+    cp "$F/bnasec-demo.service" "$rootmnt/usr/local/lib/systemd/user/" 2>/dev/null
+  fi
+  # XDG autostart launcher (proven mechanism — same as the wallpaper entry)
+  cp "$F/bnasec-demo.desktop" "$rootmnt/etc/xdg/autostart/bnasec-demo.desktop" 2>/dev/null
+  # remove the Debian welcome tour autostart in demo mode (it steals focus and blocks shots)
+  rm -f "$rootmnt"/etc/xdg/autostart/org.gnome.Tour*.desktop \
+        "$rootmnt"/usr/share/applications/org.gnome.Tour.desktop 2>/dev/null || true
+  { echo "bnasec-hook: autostart demo installed:"; ls -la "$rootmnt/etc/xdg/autostart/" | grep bnasec; } > /dev/ttyS0 2>&1 || true
+fi
+exit 0

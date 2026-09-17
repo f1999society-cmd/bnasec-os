@@ -1,0 +1,13 @@
+#!/bin/sh
+# BNAsec v2.1.1 — apply the default wallpaper (2.jpg "wave") once per user.
+# Runs at GNOME session start via /etc/xdg/autostart. After the first apply,
+# a marker stops this script so the user's own wallpaper choice is never overridden.
+M="$HOME/.config/bnasec/.wallpaper-applied"
+[ -f "$M" ] && exit 0
+W="file:///usr/share/backgrounds/bnasec/bnasec-wave.jpg"
+mkdir -p "$HOME/.config/bnasec" 2>/dev/null
+gsettings set org.gnome.desktop.background picture-uri "$W" 2>/dev/null
+gsettings set org.gnome.desktop.background picture-uri-dark "$W" 2>/dev/null
+gsettings set org.gnome.desktop.screensaver picture-uri "$W" 2>/dev/null
+touch "$M" 2>/dev/null
+exit 0

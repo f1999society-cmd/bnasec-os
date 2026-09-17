@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=BNAsec Wallpaper
+Comment=Apply the BNAsec default wallpaper on first login (never overrides later changes)
+Exec=/usr/local/sbin/bnasec-apply-wallpaper
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+Categories=System;
