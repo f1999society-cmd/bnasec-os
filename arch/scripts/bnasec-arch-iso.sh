@@ -14,6 +14,8 @@ rm -f $STAGE/../initramfs-linux.img
 ls -la $AB/initramfs-linux.cpio
 $TOOLS/zstd-root/usr/bin/zstd -q -3 -f $AB/initramfs-linux.cpio -o $AB/initramfs-linux.img
 rm $AB/initramfs-linux.cpio
+$TOOLS/zstd-root/usr/bin/zstd -t $AB/initramfs-linux.img
+test -s $AB/initramfs-linux.img || { echo "FATAL: initramfs empty"; exit 1; }
 ls -la $AB/initramfs-linux.img
 
 echo "=== 2) stage ISO tree ==="
@@ -48,15 +50,15 @@ set default=0
 set timeout=8
 
 menuentry "BNAsec Arch — Hyprland (persistent)" {
-    linux /boot/vmlinuz-linux quiet loglevel=3 zswap.enabled=0 bnasec.persist=1 bnasec.label=BNASECARCH
+    linux /boot/vmlinuz-linux quiet loglevel=3 console=tty0 console=ttyS0,115200 zswap.enabled=0 bnasec.persist=1 bnasec.label=BNASECARCH
     initrd /boot/initramfs-linux.img
 }
 menuentry "BNAsec Arch — RAM-only session (no persistence)" {
-    linux /boot/vmlinuz-linux quiet loglevel=3 zswap.enabled=0 bnasec.persist=0 bnasec.label=BNASECARCH
+    linux /boot/vmlinuz-linux quiet loglevel=3 console=tty0 console=ttyS0,115200 zswap.enabled=0 bnasec.persist=0 bnasec.label=BNASECARCH
     initrd /boot/initramfs-linux.img
 }
 menuentry "BNAsec Arch — verbose boot (debug)" {
-    linux /boot/vmlinuz-linux loglevel=7 bnasec.persist=1 bnasec.label=BNASECARCH
+    linux /boot/vmlinuz-linux loglevel=7 console=tty0 console=ttyS0,115200 bnasec.persist=1 bnasec.label=BNASECARCH
     initrd /boot/initramfs-linux.img
 }
 EOF

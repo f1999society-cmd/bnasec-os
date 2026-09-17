@@ -39,7 +39,7 @@ echo "qemu pid $QPID"
 sleep 2
 
 shot() { python3 $W/mon.py "screendump $W/$1.ppm" >/dev/null; sleep 1; }
-keys() { for k in $(cat); do python3 $W/mon.py "sendkey $k" >/dev/null; sleep 0.12; done; }
+keys() { for k in $(cat); do python3 $W/mon.py "sendkey $k" >/dev/null; sleep 0.2; done; }
 
 wait_marker() { # wait_marker <grep-pattern> <max-seconds>
   local pat="$1" mx="$2" t=0
@@ -63,12 +63,19 @@ echo "--- serial tail:"
 tail -6 $W/serial.log
 
 echo "=== login: bna / bnasec ==="
-# username
-printf 'b\nn\na\nret\n' | keys
-sleep 2
-# password
-printf 'b\nn\na\ns\ne\nc\nret\n' | keys
-echo "typed credentials"
+try_login() {
+  printf 'b\nn\na\nret\n' | keys
+  sleep 2.5
+  printf 'b\nn\na\ns\ne\nc\nret\n' | keys
+  echo "typed credentials"
+}
+try_login
+sleep 30
+shot after-login-1
+sleep 40
+shot desktop-a
+sleep 40
+shot desktop-b
 
 echo "=== wait for Hyprland desktop ==="
 sleep 100
@@ -78,11 +85,9 @@ shot desktop-b
 
 echo "=== open apps ==="
 python3 $W/mon.py "sendkey meta_l-ret" >/dev/null   # SUPER+Return → kitty
-sleep 25; shot kitty
+sleep 30; shot kitty
 python3 $W/mon.py "sendkey meta_l-b" >/dev/null     # SUPER+B → firefox
-sleep 40; shot firefox
-python3 $W/mon.py "sendkey meta_l-d" >/dev/null     # SUPER+D → wofi
-sleep 12; shot wofi
+sleep 50; shot firefox
 
 kill $QPID 2>/dev/null || true
 echo "=== done; converting PPM → PNG ==="
