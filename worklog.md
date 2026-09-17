@@ -230,4 +230,4 @@ Work Log:
 
 Stage Summary:
 - v2.1.1 = v2.1.0 + correct default wallpaper (user 2.jpg) + clean themed GRUB boot + demo entry for automated testing
-- Release upload v2.1.1 + final push next
+- Release v2.1.1 LIVE: id 390347634, assets = ISO split into part-0/1/2 (sandbox kills >1.4GB single uploads) + sha256 + rejoin instructions in body; screenshots pushed to repo assets/screenshots-v211/
