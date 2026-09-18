@@ -306,3 +306,25 @@ Stage Summary:
 - v1.0.1 live: foot default (old-GPU safe), rescue boots fixed (real text login), serial-console bug gone, start-hyprland session, launcher button + nm-applet + pavucontrol + XWayland baked in
 - kitty retained as fallback; tools unchanged; persistence untouched
 - User must reflash + verify Super+Enter opens foot on the real Dell; then revoke GitHub token
+
+---
+Task ID: 13
+Agent: Super Z (main)
+Task: v1.0.2 "perfect without mistakes" build + full QEMU screenshot tour on user request ("I need screenshots while your using it like using different things")
+
+Work Log:
+- Found v1.0.1 already built+released before interruption; tour screenshots exposed 4 REAL bugs
+- foot.ini bug: kitty-style flat keys + [colors] section rejected by foot 1.28 -> 17 error lines per launch. Verified correct syntax against shipped foot.ini(5): [main]/[colors-dark], initial-color-theme=dark default (commit 845b982, v1.0.2b)
+- /home/bna root-owned in sfs (mksquashfs -all-root stomps -pf pseudo uid/gid) -> gitstatus ".cache not writable". Fix: tmpfiles.d/bnasec-home.conf Z /home/bna - 1000 1000 (boot-time real-root chown) (v1.0.2 step 16)
+- GTK apps (wofi/thunar/firefox) aborted on first icon load: rootless build skips pacman hooks -> mime DB/desktop DB/icon caches never generated; gdk-pixbuf 2.44 is glycin-based and needs the mime DB for loader selection. Fix: config.sh step 17 runs update-mime-database + update-desktop-database + gtk-update-icon-cache in the airootfs
+- p10k downloaded gitstatusd from GitHub on first shell (offline = error banner). Fix: config.sh step 18 fetches v1.5.4, sha256-verifies (9633816e...), installs ONLY as usrbin/gitstatusd-linux-x86_64. CRITICAL lesson: a plain usrbin/gitstatusd name makes the plugin pair the binary with build.info v1.5.5 -> handshake mismatch -> "failed to initialize"; also chmod 755 (cp drops exec bit)
+- Wallpaper race: bnasec-wallpaper hardened to 60s daemon wait + 10 img retries
+- QEMU tour infrastructure: detached processes die ~60-90s after their tool call ends (setsid/nohup do NOT save them) -> every tour stage runs synchronously in one <=600s call; QEMU sendkey drops chars under TCG load (0.3s/key; GRUB-edit rescue test failed, replaced by deterministic -kernel/-initrd/-append direct boot)
+- Streaming upload lesson: curl --data-binary buffers whole 1.7GB -> OOM-killed. Use curl -T file -X POST (streams). GitHub server-side digest verified upload byte-perfect
+- Released arch-v1.0.2 (release id 391818291): bnasec-arch-1.0.2-amd64.iso (1,696,133,120 B) + .sha256; sha256 f4bc0a529a9dc45754df4bd18bedf0d797aa6fa4934090eedeb5e816dd0ebf3c; old releases untouched
+- Screenshot tour delivered: download/bnasec-v102-screens/ (10 PNGs) + bnasec-v102-screenshots.zip
+
+Stage Summary:
+- v1.0.2 published with every tour-visible defect fixed; boot->login->desktop->foot(clean)->fastfetch->wofi(icons)->thunar->rescue tty1 login->root nmap all screenshot-verified
+- Repo HEAD: v1.0.2f series commits pushed; worklog updated
+- Sandbox rules added: no detached background processes across tool calls; stream large uploads with -T; QEMU sendkey unreliable under TCG load
