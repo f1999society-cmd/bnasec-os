@@ -36,17 +36,18 @@ input {
     }
 }
 
-gestures {
-    workspace_swipe = true
-    workspace_swipe_fingers = 3
-}
+# gestures removed in Hyprland 0.56 (moved to hyprland-gestures plugin)
+#gestures {
+#    workspace_swipe = true
+#    workspace_swipe_fingers = 3
+#}
 
 # --- general look ---
 general {
     gaps_in = 6
     gaps_out = 10
     border_size = 2
-    col.active_border = rgba(cba6f7ee) rgba(f5c2e7ee) rgba(b4befe) 45deg
+    col.active_border = rgba(cba6f7ee) rgba(f5c2e7ee) rgba(b4befeff) 45deg
     col.inactive_border = rgba(313244aa)
     layout = dwindle
     resize_on_border = true
@@ -79,7 +80,7 @@ animations {
     animation = windowsOut, 1, 3.2, smoothOut
     animation = windowsMove, 1, 4, overshoot
     animation = border, 1, 6, default
-    animation = borderangle, 1, 60, loop, once
+    animation = borderangle, 1, 60, default, loop
     animation = fade, 1, 3, smoothIn
     animation = fadeDim, 1, 3, smoothIn
     animation = workspaces, 1, 4, overshoot, slide
@@ -88,7 +89,7 @@ animations {
 }
 
 dwindle {
-    pseudotile = true
+#    pseudotile = true  # removed in Hyprland 0.56
     preserve_split = true
 }
 
