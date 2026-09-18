@@ -35,7 +35,7 @@ batch fonts     ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji \
 batch audio     pipewire wireplumber pipewire-pulse
 batch shell     zsh zsh-autosuggestions zsh-syntax-highlighting
 batch apps      firefox thunar tumbler gvfs
-batch tools     aircrack-ng nmap hydra dirb sqlmap
+batch tools     aircrack-ng nmap hydra sqlmap
 batch login     greetd greetd-tuigreet
 
 echo "=== airootfs size:"
