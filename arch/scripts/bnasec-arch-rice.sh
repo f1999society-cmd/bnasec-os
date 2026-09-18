@@ -481,14 +481,14 @@ if [ -f "$CFG" ] && [ -f "$BGDIR/$(cat "$CFG")" ]; then
 else
     IMG="$BGDIR/bnasec-mocha-aurora.jpg"
 fi
-# wait up to 30s for the daemon to accept connections, then apply (3 tries)
-for i in $(seq 1 60); do
+# wait up to 60s for the daemon to accept connections, then apply (10 tries)
+for i in $(seq 1 120); do
     awww query >/dev/null 2>&1 && break
     sleep 0.5
 done
-for i in 1 2 3; do
+for i in $(seq 1 10); do
     awww img "$IMG" --transition-type grow --transition-pos center --transition-duration 1.4 --transition-fps 60 && exit 0
-    sleep 2
+    sleep 3
 done
 EOF
 w usr/local/bin/bnasec-wallpicker 755 <<'EOF'

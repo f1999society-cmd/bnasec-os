@@ -200,5 +200,19 @@ Z /home/bna - 1000 1000 - -
 EOF
 cat $R/usr/lib/tmpfiles.d/bnasec-home.conf
 
+echo "=== 17) GUI support databases (pacman hooks are disabled in the rootless build) ==="
+# Without these, GTK apps abort on first icon load ("Unrecognized image file
+# format" -> wofi/thunar/firefox never map a window) and wofi drun is empty:
+#   - mime database       : content-type sniffing, glycin/gdk-pixbuf needs it
+#   - desktop database    : mimeinfo.cache for wofi/launcher drun entries
+#   - icon theme caches   : Adwaita + hicolor lookup acceleration
+arch_run2 $R usr/bin/update-mime-database $R/usr/share/mime 2>&1 | tail -1 || true
+test -s $R/usr/share/mime/globs && echo "  mime DB OK"
+arch_run2 $R usr/bin/update-desktop-database $R/usr/share/applications 2>&1 | tail -1 || true
+test -s $R/usr/share/applications/mimeinfo.cache && echo "  desktop DB OK"
+arch_run2 $R usr/bin/gtk-update-icon-cache -f -t $R/usr/share/icons/Adwaita 2>&1 | tail -1 || true
+arch_run2 $R usr/bin/gtk-update-icon-cache -f -t $R/usr/share/icons/hicolor 2>&1 | tail -1 || true
+test -s $R/usr/share/icons/Adwaita/icon-theme.cache && echo "  icon caches OK"
+
 echo "=== CONFIG COMPLETE ==="
 df -h / | tail -1
