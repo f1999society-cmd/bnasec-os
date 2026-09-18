@@ -20,7 +20,10 @@ ls -la $AB/initramfs-linux.img
 
 echo "=== 2) stage ISO tree ==="
 rm -rf $ISO; mkdir -p $ISO/boot/grub/fonts $ISO/arch/x86_64 $ISO/EFI/boot
-cp $R/boot/vmlinuz-linux $ISO/boot/vmlinuz-linux
+VLN=$R/boot/vmlinuz-linux
+[ -e "$VLN" ] || VLN=$R/usr/lib/modules/$KVER/vmlinuz   # hooks disabled: /boot copy may not exist
+cp "$VLN" $ISO/boot/vmlinuz-linux
+mkdir -p $R/boot && cp "$VLN" $R/boot/vmlinuz-linux
 cp $AB/initramfs-linux.img $ISO/boot/initramfs-linux.img
 ln $AB/airootfs.sfs $ISO/arch/x86_64/airootfs.sfs 2>/dev/null || cp $AB/airootfs.sfs $ISO/arch/x86_64/airootfs.sfs
 cp $ARCH_ROOT/usr/share/grub/unicode.pf2 $ISO/boot/grub/fonts/ 2>/dev/null || find $ARCH_ROOT/usr/share/grub -name unicode.pf2 -exec cp {} $ISO/boot/grub/fonts/ \;
