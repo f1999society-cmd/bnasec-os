@@ -34,11 +34,20 @@ fi
 
 echo "=== F4) Catppuccin Mocha GTK theme (mauve accent) ==="
 rm -rf /tmp/cc && mkdir -p /tmp/cc
-curl -fsSL -o /tmp/cc/t.zip "https://github.com/catppuccin/gtk/releases/download/v1.0.3/catppuccin-mocha-mauve-standard%2Bdefault.zip" && \
-  cd /tmp/cc && unzip -oq t.zip && ls -d Catppuccin-Mocha* 2>/dev/null | head -4
-for d in /tmp/cc/Catppuccin-Mocha-Standard-+Default-Dark /tmp/cc/Catppuccin-Mocha-Standard-Default-Dark; do
-  [ -d "$d" ] && rm -rf "$R/usr/share/themes/$(basename $d)" && cp -a "$d" $R/usr/share/themes/ && echo "  installed $(basename $d)"
-done
+if [ ! -d $R/usr/share/themes/Catppuccin-Mocha ]; then
+  # v1.0.3 assets use lowercase names; install under the name rice.sh expects
+  for u in "https://github.com/catppuccin/gtk/releases/download/v1.0.3/catppuccin-mocha-mauve-standard%2Bdefault.zip" \
+           "https://github.com/catppuccin/gtk/releases/download/v1.0.2/catppuccin-mocha-mauve-standard%2Bdefault.zip"; do
+    curl -fsSL -o /tmp/cc/t.zip "$u" 2>/dev/null && break
+  done
+  if [ -s /tmp/cc/t.zip ]; then
+    cd /tmp/cc && unzip -oq t.zip
+    D=$(ls -d catppuccin-mocha-mauve-standard+default 2>/dev/null || ls -d catppuccin-mocha*standard* 2>/dev/null | grep -v hdpi | grep -v xhdpi | head -1)
+    [ -n "$D" ] && cp -a "$D" $R/usr/share/themes/Catppuccin-Mocha && echo "  installed as Catppuccin-Mocha (from $D)"
+  else
+    echo "  theme download failed — will use Adwaita-dark fallback"
+  fi
+fi
 ls $R/usr/share/themes/
 
 echo "=== F5) verify sudo setuid survived pacman ==="
