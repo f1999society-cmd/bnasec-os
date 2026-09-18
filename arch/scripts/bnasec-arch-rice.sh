@@ -181,14 +181,14 @@ windowrule = pin on, match:title ^(Picture-in-Picture)$
 EOF
 
 echo "=== foot config (Catppuccin Mocha; foot = default terminal, kitty kept for capable GPUs) ==="
-# foot requires [main]/[colors] sections, one option per line, and has NO
-# scrollbar option — flat kitty-style keys all land in [main] and error out.
+# foot 1.28+: colors live in [colors-dark]/[colors-light] (initial-color-theme
+# in [main] defaults to dark); old flat/[colors] layouts are rejected.
 w etc/skel/.config/foot/foot.ini <<'EOF'
 [main]
 font=JetBrainsMono Nerd Font:size=11
 pad=14x14 center
 
-[colors]
+[colors-dark]
 foreground=cdd6f4
 background=1e1e2e
 regular0=45475a
