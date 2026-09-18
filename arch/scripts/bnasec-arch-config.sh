@@ -55,7 +55,7 @@ w etc/greetd/config.toml <<'EOF'
 vt = 1
 
 [default_session]
-command = "tuigreet --time --asterisks --remember-user --cmd Hyprland"
+command = "tuigreet --time --asterisks --remember --cmd Hyprland"
 user = "greeter"
 EOF
 mkdir -p $R/etc/systemd/system/multi-user.target.wants
