@@ -49,6 +49,9 @@ Defaults env_reset, mail_badpass
 EOF
 chmod 440 $R/etc/sudoers.d/10-bnasec-wheel
 
+# bna home dirs: XDG cache (awww needs it) + screenshot target (grim keybind)
+mkdir -p $R/home/bna/.cache $R/home/bna/Pictures/Screenshots $R/home/bna/Documents $R/home/bna/Downloads
+
 # pam_shells: zsh package adds itself via scriptlet (never runs rootless) — append manually
 grep -q '/bin/zsh' $R/etc/shells || printf '/bin/zsh\n/usr/bin/zsh\n' >> $R/etc/shells
 # root rescue password (same as bna — user changes both later)

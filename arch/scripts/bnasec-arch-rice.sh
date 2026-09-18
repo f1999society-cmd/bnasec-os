@@ -435,17 +435,24 @@ EOF
 echo "=== wallpaper scripts ==="
 w usr/local/bin/bnasec-wallpaper 755 <<'EOF'
 #!/bin/bash
-# restore last chosen wallpaper or default
+# restore last chosen wallpaper or default (waits for awww-daemon socket)
 CFG="$HOME/.config/bnasec/wallpaper-choice"
 BGDIR=/usr/share/backgrounds/bnasec
 awww-daemon --format xrgb >/dev/null 2>&1 &
-sleep 0.4
 if [ -f "$CFG" ] && [ -f "$BGDIR/$(cat "$CFG")" ]; then
     IMG="$BGDIR/$(cat "$CFG")"
 else
     IMG="$BGDIR/bnasec-mocha-aurora.jpg"
 fi
-awww img "$IMG" --transition-type grow --transition-pos center --transition-duration 1.4 --transition-fps 60
+# wait up to 30s for the daemon to accept connections, then apply (3 tries)
+for i in $(seq 1 60); do
+    awww query >/dev/null 2>&1 && break
+    sleep 0.5
+done
+for i in 1 2 3; do
+    awww img "$IMG" --transition-type grow --transition-pos center --transition-duration 1.4 --transition-fps 60 && exit 0
+    sleep 2
+done
 EOF
 w usr/local/bin/bnasec-wallpicker 755 <<'EOF'
 #!/bin/bash
