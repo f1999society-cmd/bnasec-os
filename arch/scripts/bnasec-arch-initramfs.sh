@@ -16,6 +16,15 @@ fi
 echo "kernel: $KVER"
 rm -rf $STAGE
 
+# mkinitcpio hooks are disabled in the rootless build, so depmod never ran:
+# generate modules.dep/alias in the airootfs (needed for dep-closure + udev)
+if [ ! -s "$R/usr/lib/modules/$KVER/modules.dep" ]; then
+  echo "generating modules metadata (depmod) ..."
+  [ -e "$R/usr/bin/depmod" ] || ln -sf kmod $R/usr/bin/depmod
+  arch_run2 $R usr/bin/depmod -b "$R" "$KVER" >/dev/null 2>&1 || true
+fi
+[ -s "$R/usr/lib/modules/$KVER/modules.dep" ] || { echo "FATAL: depmod failed"; exit 1; }
+
 # ---------- dirs ----------
 mkdir -p $STAGE/usr/bin $STAGE/usr/lib $STAGE/usr/sbin $STAGE/etc \
          $STAGE/proc $STAGE/sys $STAGE/dev $STAGE/run $STAGE/newroot \
@@ -27,19 +36,21 @@ ln -sfn usr/bin $STAGE/sbin
 ln -sfn usr/lib $STAGE/lib
 ln -sfn usr/lib $STAGE/lib64
 
-# ---------- busybox + applets ----------
+# ---------- busybox + applets (mkinitcpio-busybox is MINIMAL: only symlink
+# applets that actually exist; mount is the REAL util-linux binary below) ----------
 cp -L $R/usr/bin/busybox $STAGE/usr/bin/busybox
-for a in sh mount umount mkdir mknod ln cat echo sed awk grep ls sleep \
-         switch_root pivot_root mountpoint findfs udevadm modprobe mkfifo \
-         mdev uname sync stat readlink head tail tr cut dirname basename \
-         date chmod chown cp mv rm dmesg freeramdisk losetup swapon env \
-         clear hexdump od printf test dd flock mkswap poweroff reboot blockdev; do
+for a in sh ash mount umount mkdir mknod ln cat echo sed awk grep ls sleep \
+         run-init mountpoint uname sync stat readlink head tail cut dirname basename \
+         chmod chown cp mv rm dmesg losetup env hexdump printf test dd cpio; do
   ln -sf /usr/bin/busybox $STAGE/usr/bin/$a
 done
 
 # ---------- loader + real tools with lib closures ----------
 cp -L $R/usr/lib/ld-linux-x86-64.so.2 $STAGE/usr/lib/
 cp -L $R/usr/lib/libc.so.6 $STAGE/usr/lib/
+# busybox needs its full closure too (newer builds link libcrypt.so.2)
+cp -L $R/usr/lib/libcrypt.so.2 $STAGE/usr/lib/ 2>/dev/null || \
+  cp -L $R/usr/lib/libxcrypt.so.2 $STAGE/usr/lib/ 2>/dev/null || true
 
 copy_bin() { # copy_bin <path-under-R>
   local src="$R/$1" dst="$STAGE/$1"
@@ -61,6 +72,7 @@ copy_bin() { # copy_bin <path-under-R>
 
 copy_bin usr/bin/udevadm
 copy_bin usr/bin/kmod
+copy_bin usr/bin/mount
 copy_bin usr/bin/sfdisk
 copy_bin usr/bin/mke2fs
 copy_bin usr/bin/blkid
@@ -110,7 +122,7 @@ cat > $STAGE/init <<'INITEOF'
 export PATH=/usr/bin:/sbin:/bin
 RES="/dev/console"
 msg() { echo "[bnasec-init] $*" > $RES 2>/dev/null; }
-dbgsh() { setsid sh -c "exec sh </dev/tty1 >/dev/tty1 2>&1" & }
+dbgsh() { sh -c "exec sh </dev/tty1 >/dev/tty1 2>&1" & }
 fatal() { msg "FATAL: $* — debug shell on tty1"; dbgsh; sleep 100000; }
 
 [ -d /proc ] || mkdir -p /proc
@@ -122,7 +134,7 @@ mount -t sysfs none /sys
 mount -t devtmpfs none /dev 2>/dev/null || mount -t tmpfs none /dev
 
 CMDLINE=$(cat /proc/cmdline)
-parse() { echo "$CMDLINE" | tr ' ' '\n' | grep "^$1=" | cut -d= -f2-; }
+parse() { for w in $CMDLINE; do case "$w" in "$1="*) echo "${w#*=}";; esac; done; }
 PERSIST=$(parse bnasec.persist); [ -z "$PERSIST" ] && PERSIST=1
 BOOTLABEL=$(parse bnasec.label); [ -z "$BOOTLABEL" ] && BOOTLABEL="BNASECARCH"
 ROOTSFS=$(parse bnasec.sfs); [ -z "$ROOTSFS" ] && ROOTSFS="arch/x86_64/airootfs.sfs"
@@ -136,7 +148,7 @@ for m in scsi_mod sd_mod sr_mod ata_piix ahci nvme virtio_blk virtio_scsi \
   esac
 done
 sleep 2
-msg "loaded=$(grep -c . /proc/modules 2>/dev/null) devnodes: $(ls /dev 2>/dev/null | grep -E '^(sd|sr|vd|nvme|mmc)' | tr '\n' ' ')"
+msg "loaded=$(grep -c . /proc/modules 2>/dev/null) devnodes: $(grep -E '^(sd|sr|vd|nvme|mmc)' /proc/partitions 2>/dev/null | awk '{printf "%s ", $4}')"
 
 bootdev=""
 i=0
@@ -279,7 +291,7 @@ mount --move /sys /newroot/sys
 mount --move /dev /newroot/dev
 mount --move /run /newroot/run 2>/dev/null || { mkdir -p /newroot/run; mount --move /run /newroot/run 2>/dev/null || true; }
 msg "switch_root -> systemd"
-exec switch_root /newroot /sbin/init
+exec run-init /newroot /sbin/init
 exec sh
 INITEOF
 chmod 755 $STAGE/init
