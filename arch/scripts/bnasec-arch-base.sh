@@ -14,7 +14,7 @@ pacman_ai -Sy 2>&1 | tail -2
 batch() {
   local name="$1"; shift
   echo "=== BATCH: $name ==="
-  pacman_ai -S --noconfirm --needed "$@" > "$AB/batch-$name.log" 2>&1
+  pacman_ai -S --noconfirm --needed --overwrite '*' "$@" > "$AB/batch-$name.log" 2>&1
   local rc=$?
   grep -E "error|failed|corrupt" "$AB/batch-$name.log" | head -5
   grep -c "installing " "$AB/batch-$name.log" | awk '{print "  installed "$1" packages"}'
