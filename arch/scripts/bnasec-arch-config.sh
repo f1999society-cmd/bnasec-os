@@ -225,6 +225,7 @@ if [ -d "$GDIR" ] && [ ! -e "$GDIR/usrbin/gitstatusd-linux-x86_64" ]; then
     && tar -xzf /tmp/gitstatusd.tar.gz -C /tmp \
     && cp /tmp/gitstatusd-linux-x86_64 "$GDIR/usrbin/gitstatusd-linux-x86_64" \
     && cp /tmp/gitstatusd-linux-x86_64 "$GDIR/usrbin/gitstatusd" \
+    && chmod 755 "$GDIR/usrbin/gitstatusd-linux-x86_64" "$GDIR/usrbin/gitstatusd" \
     && rm -f /tmp/gitstatusd.tar.gz /tmp/gitstatusd-linux-x86_64 \
     && echo "  gitstatusd installed"
 else
