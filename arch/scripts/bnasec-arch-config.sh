@@ -224,10 +224,9 @@ if [ -d "$GDIR" ] && [ ! -e "$GDIR/usrbin/gitstatusd-linux-x86_64" ]; then
     && echo "$GSUM  /tmp/gitstatusd.tar.gz" | sha256sum -c - \
     && tar -xzf /tmp/gitstatusd.tar.gz -C /tmp \
     && cp /tmp/gitstatusd-linux-x86_64 "$GDIR/usrbin/gitstatusd-linux-x86_64" \
-    && cp /tmp/gitstatusd-linux-x86_64 "$GDIR/usrbin/gitstatusd" \
-    && chmod 755 "$GDIR/usrbin/gitstatusd-linux-x86_64" "$GDIR/usrbin/gitstatusd" \
+    && chmod 755 "$GDIR/usrbin/gitstatusd-linux-x86_64" \
     && rm -f /tmp/gitstatusd.tar.gz /tmp/gitstatusd-linux-x86_64 \
-    && echo "  gitstatusd installed"
+    && echo "  gitstatusd installed (only the -linux-x86_64 name; plain 'gitstatusd' causes a version-handshake mismatch)"
 else
   echo "  gitstatusd already present (or p10k not installed)"
 fi
