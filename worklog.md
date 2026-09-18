@@ -231,3 +231,22 @@ Work Log:
 Stage Summary:
 - v2.1.1 = v2.1.0 + correct default wallpaper (user 2.jpg) + clean themed GRUB boot + demo entry for automated testing
 - Release v2.1.1 LIVE: id 390347634, assets = ISO split into part-0/1/2 (sandbox kills >1.4GB single uploads) + sha256 + rejoin instructions in body; screenshots pushed to repo assets/screenshots-v211/
+
+---
+Task ID: 13-arch-final-7pct
+Agent: main
+Task: Finish arch-v1.0.0 — fix greetd auth, prove Hyprland desktop, capture real screenshots, publish release
+
+Work Log:
+- greetd auth was ALREADY fixed earlier (commit a591ea0: /etc/shells lacked /bin/zsh -> pam_shells denied bna); re-verified 3x in QEMU: loginctl shows bna session seat0/tty1, ps shows Hyprland running as bna, zram active
+- QEMU monitor screendumps black after kernel handoff (stdvga/bochs artifact); greeter shot also black (artifact under investigation; GRUB + login both work)
+- Built grim+HTTP-PUT proof pipeline: guest grim -> curl PUT 10.0.2.2:8050 -> host shots/ (bypasses QEMU screendump entirely)
+- v3 proved wallpaper pipeline: awww-daemon restart + apply as bna -> awww query "displaying: image: bnasec-mocha-aurora.jpg" -> wallpaper renders in grim shots
+- v4 proved app windows: kitty/wofi/firefox ALL map (hyprctl clients), waybar renders Catppuccin Mocha bar (workspace pill, clock, wired/battery/temp modules), kitty window shows lavender Hyprland border
+- REAL BUG fixed: bnasec-wallpaper slept 0.4s after daemon start -> apply raced + failed silently on slow boots; replaced with 30s wait-for-socket loop + 3 apply retries (rice.sh + airootfs)
+- REAL BUG fixed: bna home lacked .cache (awww cache error) + Pictures/Screenshots (grim keybind target); added to config.sh + airootfs
+- Diagnosed TCG (no KVM) slowness: GL apps take 1-3 min first paint; v5 final run uses sole-window sequencing + long paint waits + double grims
+- Rebuilt airootfs.sfs with fixes while v5 QEMU runs (iso.sh deferred — xorriso would overwrite the ISO the VM is reading)
+
+Stage Summary:
+- Login + desktop + rice ALL verified working; final screenshot set in progress (v5); after v5: rebuild ISO (new sha), re-run smoke verify, split + upload to arch-v1.0.0 release, remind token revocation
