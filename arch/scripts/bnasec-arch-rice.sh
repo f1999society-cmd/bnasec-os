@@ -209,10 +209,15 @@ w etc/skel/.config/waybar/config.jsonc <<'EOF'
     "margin-top": 8,
     "margin-left": 10,
     "margin-right": 10,
-    "modules-left": ["hyprland/workspaces", "hyprland/window"],
+    "modules-left": ["custom/launcher", "hyprland/workspaces", "hyprland/window"],
     "modules-center": ["clock"],
     "modules-right": ["tray", "network", "cpu", "memory", "battery", "pulseaudio"],
-    "hyprland/workspaces": {
+    "custom/launcher": {
+        "format": " BNAsec",
+        "on-click": "wofi --show drun",
+        "tooltip": false
+    },
+"hyprland/workspaces": {
         "format": "{name}",
         "on-click": "activate",
         "format-icons": { "active": "" }

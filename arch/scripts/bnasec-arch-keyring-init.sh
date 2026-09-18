@@ -4,7 +4,6 @@
 set -e
 source /home/z/my-project/arch-build/env.sh
 KR="$1"
-[ -d "$KR" ] || { echo "usage: $0 <keyring-dir>"; exit 1; }
 mkdir -p "$KR"; chmod 700 "$KR"
 
 run_gpg() { arch_run2 "$ARCH_ROOT" usr/bin/gpg --homedir "$KR" "$@"; }
