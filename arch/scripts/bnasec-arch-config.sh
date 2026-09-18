@@ -214,5 +214,23 @@ arch_run2 $R usr/bin/gtk-update-icon-cache -f -t $R/usr/share/icons/Adwaita 2>&1
 arch_run2 $R usr/bin/gtk-update-icon-cache -f -t $R/usr/share/icons/hicolor 2>&1 | tail -1 || true
 test -s $R/usr/share/icons/Adwaita/icon-theme.cache && echo "  icon caches OK"
 
+echo "=== 18) preinstall gitstatusd (p10k otherwise downloads from GitHub on first shell) ==="
+GDIR=$R/usr/share/zsh-theme-powerlevel10k/gitstatus
+if [ -d "$GDIR" ] && [ ! -e "$GDIR/usrbin/gitstatusd-linux-x86_64" ]; then
+  GVER=$(grep 'uname_s_glob="linux"; .* uname_m_glob="x86_64"' $GDIR/install.info | grep -o 'version="[^"]*"' | cut -d'"' -f2)
+  GSUM=$(grep 'uname_s_glob="linux"; .* uname_m_glob="x86_64"' $GDIR/install.info | grep -o 'sha256="[^"]*"' | cut -d'"' -f2)
+  echo "  fetching gitstatusd $GVER (expect sha256 $GSUM)"
+  curl -fsSL -o /tmp/gitstatusd.tar.gz "https://github.com/romkatv/gitstatus/releases/download/$GVER/gitstatusd-linux-x86_64.tar.gz" \
+    && echo "$GSUM  /tmp/gitstatusd.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/gitstatusd.tar.gz -C /tmp \
+    && cp /tmp/gitstatusd-linux-x86_64 "$GDIR/usrbin/gitstatusd-linux-x86_64" \
+    && cp /tmp/gitstatusd-linux-x86_64 "$GDIR/usrbin/gitstatusd" \
+    && rm -f /tmp/gitstatusd.tar.gz /tmp/gitstatusd-linux-x86_64 \
+    && echo "  gitstatusd installed"
+else
+  echo "  gitstatusd already present (or p10k not installed)"
+fi
+ls -la $GDIR/usrbin/ 2>/dev/null | tail -3
+
 echo "=== CONFIG COMPLETE ==="
 df -h / | tail -1
