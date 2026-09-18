@@ -68,7 +68,10 @@ command = "tuigreet --time --asterisks --remember --cmd Hyprland"
 user = "greeter"
 EOF
 mkdir -p $R/etc/systemd/system/multi-user.target.wants
-ln -sf /usr/lib/systemd/system/greetd.service $R/etc/systemd/system/multi-user.target.wants/greetd.service
+# greetd belongs to the GRAPHICAL target (was multi-user: broke systemd.unit=multi-user rescue boots)
+ln -sf /usr/lib/systemd/system/greetd.service $R/etc/systemd/system/graphical.target.wants/greetd.service
+mkdir -p $R/etc/systemd/system/multi-user.target.wants
+ln -sf /usr/lib/systemd/system/getty@.service $R/etc/systemd/system/getty.target.wants/getty@tty1.service
 ls -la $R/etc/systemd/system/multi-user.target.wants/ | tail -2
 
 echo "=== 5) services: NetworkManager ==="

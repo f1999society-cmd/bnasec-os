@@ -27,7 +27,7 @@ batch() {
 batch base      base linux linux-firmware sudo networkmanager zram-generator \
                 e2fsprogs exfatprogs ntfs-3g dosfstools nano git curl openssh \
                 zip unzip usbutils pciutils alsa-utils rfkill
-batch desktop   hyprland waybar wofi kitty swww dunst fastfetch grim \
+batch desktop   hyprland waybar wofi kitty foot swww dunst fastfetch grim \
                 xdg-desktop-portal-hyprland xdg-desktop-portal-gtk \
                 wl-clipboard brightnessctl
 batch fonts     ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji \
@@ -41,7 +41,7 @@ batch login     greetd greetd-tuigreet
 echo "=== airootfs size:"
 du -sh $AIROOTFS
 echo "=== key binaries present:"
-for b in usr/bin/hyprland usr/bin/waybar usr/bin/kitty usr/bin/wofi usr/bin/firefox usr/bin/thunar \
+for b in usr/bin/hyprland usr/bin/waybar usr/bin/kitty usr/bin/foot usr/bin/wofi usr/bin/firefox usr/bin/thunar \
          usr/bin/sudo usr/bin/nmap usr/bin/hydra usr/bin/sqlmap usr/bin/dirb usr/bin/aircrack-ng \
          usr/bin/greetd usr/bin/tuigreet usr/bin/swww usr/bin/fastfetch usr/bin/zsh; do
   [ -e "$AIROOTFS/$b" ] && echo "  OK  $b" || echo "  MISSING  $b"

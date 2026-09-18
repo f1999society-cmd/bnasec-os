@@ -112,7 +112,7 @@ exec-once = wl-paste --type text --watch cliphist store
 
 # --- keybinds ---
 $mod = SUPER
-$terminal = kitty
+$terminal = foot
 $menu = wofi --show drun
 
 bind = $mod, Return, exec, $terminal
@@ -177,6 +177,27 @@ windowrule = float on, match:class ^(nm-connection-editor)$
 windowrule = float on, match:class ^(blueman-manager)$
 windowrule = float on, match:title ^(Picture-in-Picture)$
 windowrule = pin on, match:title ^(Picture-in-Picture)$
+EOF
+
+echo "=== foot config (Catppuccin Mocha; foot = default terminal, kitty kept for capable GPUs) ==="
+w etc/skel/.config/foot/foot.ini <<'EOF'
+font=JetBrainsMono Nerd Font:size=11
+pad=14x14 center
+scrollbar.enabled=no
+
+# Catppuccin Mocha
+foreground=cdd6f4
+background=1e1e2e
+regular0=45475a  bright0=585b70
+regular1=f38ba8  bright1=f38ba8
+regular2=a6e3a1  bright2=a6e3a1
+regular3=f9e2af  bright3=f9e2af
+regular4=89b4fa  bright4=89b4fa
+regular5=f5c2e7  bright5=f5c2e7
+regular6=94e2d5  bright6=94e2d5
+regular7=bac2de  bright7=a6adc8
+selection-foreground=cdd6f4
+selection-background=414559
 EOF
 
 echo "=== waybar config + css ==="
