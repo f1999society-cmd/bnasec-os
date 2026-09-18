@@ -48,9 +48,14 @@ sleep 6
 shot greetd
 echo "=== typing bna/bnasec ==="
 printf 'b\nn\na\nret\n' | keys
-sleep 2
+sleep 4   # wait for tuigreet to process username (Please wait...) and show Password prompt
 printf 'b\nn\na\ns\ne\nc\nret\n' | keys
 shot after-login
+sleep 14
+# retry: if the password keystrokes were dropped during the auth conversation,
+# the Password prompt is up again — retype; if login already succeeded these
+# chars land on the desktop harmlessly
+printf 'b\nn\na\ns\ne\nc\nret\n' | keys
 
 echo "=== waiting for waybar desktop (up to 210s) ==="
 FOUND=0
