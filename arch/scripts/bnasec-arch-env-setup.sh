@@ -11,7 +11,7 @@ set -e
 REPO=/home/z/my-project/repo
 export AB=/home/z/my-project/arch-build
 export TOOLS=$AB/tools
-mkdir -p $AB $TOOLS $AB/empty-hooks
+mkdir -p $AB $TOOLS $AB/empty-hooks $AB/paccache
 
 echo "=== 1) symlink-shim ==="
 gcc -shared -fPIC -O2 -o $TOOLS/symlink-shim.so $REPO/arch/tools/symlink-shim.c -ldl
@@ -34,11 +34,18 @@ ldd $TOOLS/zstd-root/usr/bin/cpio 2>/dev/null | grep "not found" && { echo "cpio
 echo "=== 3) Arch bootstrap root ==="
 cd $DL
 if [ ! -x $AB/arch-root/usr/bin/pacman ]; then
-  curl -fL -o bootstrap.tar.zst "https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst"
-  ls -la bootstrap.tar.zst
-  $TOOLS/zstd-root/usr/bin/zstd -d -q -f bootstrap.tar.zst -o bootstrap.tar
+  if [ ! -s bootstrap.tar.zst ] && [ ! -s bootstrap.tar ]; then
+    curl -fL -o bootstrap.tar.zst "https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst"
+  fi
+  ls -la bootstrap.tar.zst bootstrap.tar 2>/dev/null || true
+  [ -s bootstrap.tar ] || $TOOLS/zstd-root/usr/bin/zstd -d -q -f bootstrap.tar.zst -o bootstrap.tar
   mkdir -p $AB/bsx
-  env LD_PRELOAD=$TOOLS/symlink-shim.so tar -xf bootstrap.tar -C $AB/bsx
+  # pass 1: some dirs in the tarball are mode 555 -> symlink creation fails
+  env LD_PRELOAD=$TOOLS/symlink-shim.so tar -xf bootstrap.tar -C $AB/bsx 2>/dev/null || true
+  # make everything writable, pass 2 fills the gaps (tar re-applies 555 dirs,
+  # so the chmod MUST come after the final extraction)
+  env LD_PRELOAD=$TOOLS/symlink-shim.so tar -xf bootstrap.tar -C $AB/bsx 2>/dev/null || true
+  chmod -R u+w $AB/bsx 2>/dev/null || true
   rm -f bootstrap.tar.zst bootstrap.tar
   BSR=$(ls -d $AB/bsx/*/ | head -1)
   echo "bootstrap root: $BSR"
@@ -48,10 +55,10 @@ fi
 ls $AB/arch-root/usr/bin/pacman && echo "pacman present"
 
 echo "=== 4) pacman.conf + hooks + keyring ==="
+cp $REPO/arch/tools/env.sh $AB/env.sh
 cp $REPO/arch/tools/pacman.conf $AB/pacman.conf
 chmod 700 $AB/arch-root/etc/pacman.d/gnupg 2>/dev/null || true
-source $REPO/arch/scripts/bnasec-arch-keyring-init.sh 2>/dev/null || true
-# keyring-init sources env.sh itself; invoke as script instead:
+# keyring-init sources env.sh itself; invoke as a script:
 bash $REPO/arch/scripts/bnasec-arch-keyring-init.sh $AB/arch-root/etc/pacman.d/gnupg
 
 echo "=== 5) build tools into arch-root ==="
