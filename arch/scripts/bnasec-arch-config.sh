@@ -189,5 +189,16 @@ echo "=== 15) polkit auth agent (small, autostarted by Hyprland config) ==="
 pacman_ai -S --noconfirm --needed lxqt-policykit 2>&1 | tail -1
 rm -f $PACCACHE/*.pkg.tar.zst*
 
+echo "=== 16) home ownership at boot (mksquashfs -all-root stomps pseudo-file uid/gid) ==="
+# -all-root makes every sfs file root-owned, so /home/bna ships root-owned and
+# gitstatus/p10k fails with "Directory is not writable: /home/bna/.cache".
+# systemd-tmpfiles (runs as REAL root every boot, before greetd) fixes it:
+w $R/usr/lib/tmpfiles.d/bnasec-home.conf <<'EOF'
+# BNAsec: bna's home must be owned by bna (uid/gid 1000) in the live system.
+# 'Z' adjusts ownership recursively, '-' keeps existing modes untouched.
+Z /home/bna - 1000 1000 - -
+EOF
+cat $R/usr/lib/tmpfiles.d/bnasec-home.conf
+
 echo "=== CONFIG COMPLETE ==="
 df -h / | tail -1

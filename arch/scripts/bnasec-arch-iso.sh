@@ -7,7 +7,7 @@ STAGE=$AB/initramfs-stage
 ISO=$AB/isostage
 KVER=$(ls $R/usr/lib/modules 2>/dev/null | grep -v extramodules | head -1)
 [ -n "$KVER" ] || KVER=7.2.6-arch2-1
-OUT=$AB/bnasec-arch-1.0.1-amd64.iso
+OUT=$AB/bnasec-arch-1.0.2-amd64.iso
 
 echo "=== 1) pack initramfs (newc cpio, zstd) ==="
 rm -f $STAGE/../initramfs-linux.img

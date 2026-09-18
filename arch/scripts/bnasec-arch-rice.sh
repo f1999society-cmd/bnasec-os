@@ -181,22 +181,32 @@ windowrule = pin on, match:title ^(Picture-in-Picture)$
 EOF
 
 echo "=== foot config (Catppuccin Mocha; foot = default terminal, kitty kept for capable GPUs) ==="
+# foot requires [main]/[colors] sections, one option per line, and has NO
+# scrollbar option — flat kitty-style keys all land in [main] and error out.
 w etc/skel/.config/foot/foot.ini <<'EOF'
+[main]
 font=JetBrainsMono Nerd Font:size=11
 pad=14x14 center
-scrollbar.enabled=no
 
-# Catppuccin Mocha
+[colors]
 foreground=cdd6f4
 background=1e1e2e
-regular0=45475a  bright0=585b70
-regular1=f38ba8  bright1=f38ba8
-regular2=a6e3a1  bright2=a6e3a1
-regular3=f9e2af  bright3=f9e2af
-regular4=89b4fa  bright4=89b4fa
-regular5=f5c2e7  bright5=f5c2e7
-regular6=94e2d5  bright6=94e2d5
-regular7=bac2de  bright7=a6adc8
+regular0=45475a
+bright0=585b70
+regular1=f38ba8
+bright1=f38ba8
+regular2=a6e3a1
+bright2=a6e3a1
+regular3=f9e2af
+bright3=f9e2af
+regular4=89b4fa
+bright4=89b4fa
+regular5=f5c2e7
+bright5=f5c2e7
+regular6=94e2d5
+bright6=94e2d5
+regular7=bac2de
+bright7=a6adc8
 selection-foreground=cdd6f4
 selection-background=414559
 EOF
