@@ -5,7 +5,8 @@ source /home/z/my-project/arch-build/env.sh
 R=$AIROOTFS
 STAGE=$AB/initramfs-stage
 ISO=$AB/isostage
-KVER=$(ls $R/usr/lib/modules | grep -v extramodules | head -1)
+KVER=$(ls $R/usr/lib/modules 2>/dev/null | grep -v extramodules | head -1)
+[ -n "$KVER" ] || KVER=7.2.6-arch2-1
 OUT=$AB/bnasec-arch-1.0.0-amd64.iso
 
 echo "=== 1) pack initramfs (newc cpio, zstd) ==="
@@ -22,9 +23,12 @@ echo "=== 2) stage ISO tree ==="
 rm -rf $ISO; mkdir -p $ISO/boot/grub/fonts $ISO/arch/x86_64 $ISO/EFI/boot
 VLN=$R/boot/vmlinuz-linux
 [ -e "$VLN" ] || VLN=$R/usr/lib/modules/$KVER/vmlinuz   # hooks disabled: /boot copy may not exist
+[ -e "$VLN" ] || VLN=$AB/vmlinuz-linux.extracted        # recovered from prior ISO (airootfs tree pruned)
 cp "$VLN" $ISO/boot/vmlinuz-linux
-mkdir -p $R/boot
-[ "$VLN" = "$R/boot/vmlinuz-linux" ] || cp "$VLN" $R/boot/vmlinuz-linux
+if [ -d "$R/usr/lib" ]; then
+  mkdir -p $R/boot
+  [ "$VLN" = "$R/boot/vmlinuz-linux" ] || cp "$VLN" $R/boot/vmlinuz-linux
+fi
 cp $AB/initramfs-linux.img $ISO/boot/initramfs-linux.img
 ln $AB/airootfs.sfs $ISO/arch/x86_64/airootfs.sfs 2>/dev/null || cp $AB/airootfs.sfs $ISO/arch/x86_64/airootfs.sfs
 cp $ARCH_ROOT/usr/share/grub/unicode.pf2 $ISO/boot/grub/fonts/ 2>/dev/null || find $ARCH_ROOT/usr/share/grub -name unicode.pf2 -exec cp {} $ISO/boot/grub/fonts/ \;

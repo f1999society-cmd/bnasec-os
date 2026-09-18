@@ -15,6 +15,7 @@ export PATH="$TOOLS/zstd-root/usr/bin:$TOOLS/proot-root/usr/bin:$PATH"
 export LD_LIBRARY_PATH="$TOOLS/proot-root/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
 
 export ARCH_ROOT=$AB/arch-root
+export GCONV_PATH=$ARCH_ROOT/usr/lib/gconv   # mtools codepage conversion
 export AIROOTFS=$AB/airootfs
 export PACCONF=$AB/pacman.conf
 export PACCACHE=$AB/paccache

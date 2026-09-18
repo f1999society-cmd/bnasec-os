@@ -1,8 +1,9 @@
 #!/bin/bash
-# BNAsec-Arch: FINAL screenshot run v4.
-# v3 proved: login, IPC (after settle), wallpaper apply, grim+HTTP pipeline.
-# v4 adds: waybar restart check, IPC-driven app launches, poll hyprctl clients
-# for real window mapping, app log pulls, settled final desktop.
+# BNAsec-Arch: FINAL screenshot run v5 (the deliverable set).
+# Sequence: greetd shot (repaint trick) -> login bna -> settle -> IPC ->
+# wallpaper APPLY (unconditional) + verify 'displaying: image' -> grim desktop ->
+# kitty (sole window, long paint) -> pkill -> wofi (sole) -> pkill ->
+# firefox (sole, 2min paint, double grim) -> final desktop.
 set -e
 source /home/z/my-project/arch-build/env.sh
 export LD_LIBRARY_PATH="$TOOLS/qemu-root/usr/lib/x86_64-linux-gnu:$TOOLS/qemu-root/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
@@ -122,13 +123,15 @@ def wait_win(cls, marker, minutes=10):
 
 print("[1] waiting for boot / serial prompt...")
 wait_pat("bnasec login:", 480, quiet=False)
-print("[2] greetd screendump attempts")
+print("[2] greetd: repaint trick (type x, shot, erase)")
+gmean = -1
 for attempt in range(4):
-    key("shift"); time.sleep(2)
+    key("x"); time.sleep(2.5)
     gmean = shot("greetd")
     print(f"    attempt {attempt}: mean={gmean}")
+    key("bsp"); time.sleep(1)
     if gmean > 12: break
-    time.sleep(6)
+    time.sleep(5)
 
 print("[3] serial root shell")
 s.sendall(b"root\n"); time.sleep(2)
@@ -151,7 +154,7 @@ for i in range(40):
 print("    Hyprland up:", up)
 if not up: sys.exit(2)
 
-print("[5] waiting runtime sockets + settle")
+print("[5] runtime sockets + settle")
 ready = False
 for i in range(60):
     s.sendall(b"ls /run/user/1000/hypr/ >/dev/null 2>&1 && echo HYPR\"T-READY\"\n")
@@ -173,72 +176,65 @@ for i in range(8):
     time.sleep(8)
 print("    IPC responsive:", ipc)
 
-print("[7] waybar check/restart")
-scmd("pidof waybar | grep -q . && echo BAR[:-UP:] || echo BAR[:-DOWN:]", "BAR[:-", 20)
-if "BAR[:-DOWN:]" in buf.decode(errors="replace")[-300:]:
-    print("    waybar down -> restarting via IPC")
-    scmd("hyprctl dispatch exec waybar && echo BAR[:-FIX:]", "BAR[:-FIX:]", 30)
-    time.sleep(15)
-    scmd("pidof waybar | grep -q . && echo BAR[:-UP2:] || echo BAR[:-STILL:]", "BAR[:-", 20)
-
-print("[8] wallpaper verify/apply")
+print("[7] wallpaper: ensure applied + VERIFY image displayed")
 scmd("mkdir -p /home/bna/.cache; chown bna:bna /home/bna/.cache", "]:", 15)
-scmd("awww query >/dev/null 2>&1 && echo WP[:-ALREADY:] || echo WP[:-MISSING:]", "WP[:-", 20)
-if "WP[:-MISSING:]" in buf.decode(errors="replace")[-300:]:
+scmd("awww query 2>&1 | grep -q 'displaying: image' && echo WP[:-HAS-IMG:] || echo WP[:-NO-IMG:]", "WP[:-", 25)
+if "WP[:-NO-IMG:]" in buf.decode(errors="replace")[-300:]:
     scmd("pkill awww-daemon; sleep 2; rm -f /run/user/1000/*awww*.sock", "]:", 20)
     scmd(f"{BENV} awww-daemon --format xrgb >/tmp/awww2.log 2>&1 & echo AWWW[-STARTED:]", "AWWW[-STARTED:]", 20)
     for i in range(30):
         scmd("sleep 2; awww query >/dev/null 2>&1 && echo AWWW[-ALIVE:]", "AWWW[-ALIVE:]", 15)
         if "AWWW[-ALIVE:]" in buf.decode(errors="replace")[-300:]: break
-    scmd(f"{BENV} awww img /usr/share/backgrounds/bnasec/bnasec-mocha-aurora.jpg && echo WP[:-SET:]", "WP[:-SET:]", 60)
-scmd("awww query 2>&1 | head -1; echo QRY[:-END:]", "QRY[:-END:]", 25)
-print("    wallpaper settle 30s")
-time.sleep(30)
+    scmd(f"{BENV} awww img /usr/share/backgrounds/bnasec/bnasec-mocha-aurora.jpg --transition-type none && echo WP[:-SET:]", "WP[:-SET:]", 60)
+# verify regardless of path taken
+scmd("awww query 2>&1 | grep -o 'displaying: image.*' | head -1; echo QRY[:-END:]", "QRY[:-END:]", 25)
+print("    wallpaper settle 25s")
+time.sleep(25)
 
-print("[9] grim: clean desktop (bar + wallpaper)")
+print("[8] grim: clean desktop (bar + wallpaper)")
 grim("desktop")
 
-print("[10] kitty via IPC + window-mapping poll")
+print("[9] kitty (sole window, long paint)")
 scmd("hyprctl dispatch exec kitty && echo KITTY[-GO:]", "KITTY[-GO:]", 25)
 kw = wait_win("kitty", "KITTY[-MAPPED:]", 8)
 print("    kitty mapped:", kw)
-time.sleep(25)
+print("    kitty paint wait 75s")
+time.sleep(75)
 grim("kitty")
+print("    kitty second paint wait 45s")
+time.sleep(45)
+grim("kitty2", tries=2)
+scmd("pkill kitty; true", "]:", 15); time.sleep(4)
 
-print("[11] wofi via IPC + poll")
+print("[10] wofi (sole window)")
 scmd("hyprctl dispatch exec 'wofi --show drun' && echo WOFI[-GO:]", "WOFI[-GO:]", 25)
 ww = wait_win("wofi", "WOFI[-MAPPED:]", 5)
 print("    wofi mapped:", ww)
-time.sleep(12)
+time.sleep(15)
 grim("wofi")
-scmd("pkill wofi; true", "]:", 15)
+scmd("pkill wofi; true", "]:", 15); time.sleep(3)
 
-print("[12] firefox via IPC + poll")
-scmd("hyprctl dispatch exec firefox && echo FF[-GO:]", "FF[-GO:]", 25)
+print("[11] firefox (sole window, long paint)")
+scmd("hyprctl dispatch exec firefox http://example.com && echo FF[-GO:]", "FF[-GO:]", 25)
 fw = wait_win("firefox", "FF[-MAPPED:]", 12)
 print("    firefox mapped:", fw)
-time.sleep(60)
-grim("firefox", tries=2)
-print("    firefox extra settle 60s")
+print("    firefox paint wait 120s")
+time.sleep(120)
+grim("firefox")
+print("    firefox extra 60s")
 time.sleep(60)
 grim("firefox2", tries=2)
+scmd("pkill firefox; true", "]:", 15); time.sleep(6)
 
-print("[13] final clean desktop + logs")
-scmd("pkill firefox; true", "]:", 15)
-time.sleep(8)
+print("[12] final clean desktop")
 grim("desktop-final", tries=2)
-scmd("tail -4 /tmp/kitty.log 2>/dev/null; echo KLOG[:-END:]", "KLOG[:-END:]", 15)
-scmd("tail -4 /tmp/ff.log 2>/dev/null; echo FLOG[:-END:]", "FLOG[:-END:]", 15)
 scmd("pidof waybar >/dev/null && echo BAR[:-FINAL-UP:] || echo BAR[:-FINAL-DOWN:]", "BAR[:-FINAL-", 20)
-scmd("hyprctl version | head -1; free -h | head -2 | tail -1; swapon --show | tail -1", "]", 25)
+scmd("awww query 2>&1 | head -1", "]", 20)
+scmd("free -h | head -2 | tail -1; swapon --show | tail -1; echo SYS[-END:]", "SYS[-END:]", 25)
 drain(2)
 open(W + "/final-state.txt", "wb").write(buf[-4000:])
 print("PROOF SEQUENCE DONE")
 PYEOF
 RC=$?
-
-python3 $W/mon.py "screendump $W/desktop-qemu.ppm" >/dev/null 2>&1 || true
-sleep 1
-[ -f $W/desktop-qemu.ppm ] && python3 -c "from PIL import Image; Image.open('$W/desktop-qemu.ppm').save('$W/desktop-qemu.png')" 2>/dev/null
 ls -la $W/shots/ 2>/dev/null
 echo "GRIM PROOF DONE rc=$RC"
