@@ -102,7 +102,7 @@ misc {
 
 # --- autostart ---
 exec-once = dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
-exec-once = swww-daemon --format xrgb
+exec-once = awww-daemon --format xrgb
 exec-once = sleep 1 && bnasec-wallpaper
 exec-once = waybar
 exec-once = dunst
@@ -437,14 +437,14 @@ w usr/local/bin/bnasec-wallpaper 755 <<'EOF'
 # restore last chosen wallpaper or default
 CFG="$HOME/.config/bnasec/wallpaper-choice"
 BGDIR=/usr/share/backgrounds/bnasec
-swww-daemon --format xrgb >/dev/null 2>&1 &
+awww-daemon --format xrgb >/dev/null 2>&1 &
 sleep 0.4
 if [ -f "$CFG" ] && [ -f "$BGDIR/$(cat "$CFG")" ]; then
     IMG="$BGDIR/$(cat "$CFG")"
 else
     IMG="$BGDIR/bnasec-mocha-aurora.jpg"
 fi
-swww img "$IMG" --transition-type grow --transition-pos center --transition-duration 1.4 --transition-fps 60
+awww img "$IMG" --transition-type grow --transition-pos center --transition-duration 1.4 --transition-fps 60
 EOF
 w usr/local/bin/bnasec-wallpicker 755 <<'EOF'
 #!/bin/bash
@@ -453,7 +453,7 @@ BGDIR=/usr/share/backgrounds/bnasec
 CFG="$HOME/.config/bnasec/wallpaper-choice"
 mkdir -p "$HOME/.config/bnasec"
 CHOICE=$(ls "$BGDIR" | wofi --dmenu --prompt wallpaper --width 420)
-[ -n "$CHOICE" ] && swww img "$BGDIR/$CHOICE" --transition-type grow --transition-pos center --transition-duration 1.4 --transition-fps 60 \
+[ -n "$CHOICE" ] && awww img "$BGDIR/$CHOICE" --transition-type grow --transition-pos center --transition-duration 1.4 --transition-fps 60 \
   && basename "$CHOICE" > "$CFG"
 EOF
 
