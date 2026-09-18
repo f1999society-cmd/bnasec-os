@@ -49,6 +49,12 @@ Defaults env_reset, mail_badpass
 EOF
 chmod 440 $R/etc/sudoers.d/10-bnasec-wheel
 
+# pam_shells: zsh package adds itself via scriptlet (never runs rootless) — append manually
+grep -q '/bin/zsh' $R/etc/shells || printf '/bin/zsh\n/usr/bin/zsh\n' >> $R/etc/shells
+# root rescue password (same as bna — user changes both later)
+ROOTHASH=$(openssl passwd -6 'bnasec')
+sed -i "s|^root:\\*:|root:$ROOTHASH:|" $R/etc/shadow
+
 echo "=== 4) greetd + tuigreet (password login, no autologin) ==="
 w etc/greetd/config.toml <<'EOF'
 [terminal]
