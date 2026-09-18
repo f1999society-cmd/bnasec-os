@@ -57,38 +57,21 @@ sleep 14
 # chars land on the desktop harmlessly
 printf 'b\nn\na\ns\ne\nc\nret\n' | keys
 
-echo "=== waiting for waybar desktop (up to 210s) ==="
-FOUND=0
-while [ $((SECONDS-T0)) -lt 460 ]; do
-  shot probe
-  python3 - <<'PYEOF' && { FOUND=1; break; } || true
-from PIL import Image
-im = Image.open("/home/z/my-project/arch-build/final-run/probe.ppm").convert("L")
-strip = im.crop((0, 0, im.width, 46)); h = strip.histogram()
-lit = sum(h[60:]) / (strip.width * strip.height)
-import shutil
-if lit > 0.15:
-    shutil.copy("/home/z/my-project/arch-build/final-run/probe.png", "/home/z/my-project/arch-build/final-run/desktop.png")
-    print(f"DESKTOP detected lit={lit:.0%}")
-    raise SystemExit(0)
-raise SystemExit(1)
-PYEOF
-  sleep 10
-done
-[ $FOUND = 1 ] && echo "=== DESKTOP OK ===" || echo "=== desktop not detected; shots saved anyway ==="
+echo "=== waiting for desktop ==="
+sleep 75
+shot desktop
+sleep 15
+shot desktop2
 
-if [ $FOUND = 1 ]; then
-  echo "=== apps: kitty (SUPER+Return) ==="
-  python3 $W/mon.py "sendkey meta_l-ret" >/dev/null 2>&1
-  sleep 22; shot kitty
-  echo "=== apps: wofi (SUPER+D) ==="
-  python3 $W/mon.py "sendkey meta_l-d" >/dev/null 2>&1
-  sleep 8; shot wofi
-  python3 $W/mon.py "sendkey esc" >/dev/null 2>&1
-  echo "=== apps: firefox (SUPER+B) ==="
-  python3 $W/mon.py "sendkey meta_l-b" >/dev/null 2>&1
-  sleep 45; shot firefox
-fi
+echo "=== apps ==="
+python3 $W/mon.py "sendkey meta_l-ret" >/dev/null 2>&1
+sleep 22; shot kitty
+python3 $W/mon.py "sendkey meta_l-d" >/dev/null 2>&1
+sleep 8; shot wofi
+python3 $W/mon.py "sendkey esc" >/dev/null 2>&1
+sleep 2
+python3 $W/mon.py "sendkey meta_l-b" >/dev/null 2>&1
+sleep 50; shot firefox
 
 echo "=== serial tail ==="; tail -5 $W/serial.log
 python3 $W/mon.py "quit" >/dev/null 2>&1 || kill $QPID 2>/dev/null || true
