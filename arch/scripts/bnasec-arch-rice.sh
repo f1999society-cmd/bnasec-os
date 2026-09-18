@@ -97,8 +97,8 @@ misc {
     force_default_wallpaper = 0
     disable_hyprland_logo = true
     disable_splash_rendering = true
-    vfr = true
-    new_window_takes_over_fullscreen = 2
+#    vfr = true  # removed in Hyprland 0.56
+#    new_window_takes_over_fullscreen = 2  # removed in Hyprland 0.56
 }
 
 # --- autostart ---
@@ -125,7 +125,7 @@ bind = $mod, M, exit
 bind = $mod, V, togglefloating
 bind = $mod, F, fullscreen
 bind = $mod, P, pseudo
-bind = $mod, J, togglesplit
+bind = $mod, J, layoutmsg, togglesplit
 bind = $mod, left, movefocus, l
 bind = $mod, right, movefocus, r
 bind = $mod, up, movefocus, u
@@ -172,11 +172,11 @@ bindm = $mod, mouse:272, movewindow
 bindm = $mod, mouse:273, resizewindow
 
 # --- window rules ---
-windowrule = float, ^(pavucontrol)$
-windowrule = float, ^(nm-connection-editor)$
-windowrule = float, ^(blueman-manager)$
-windowrule = float, title:^(Picture-in-Picture)$
-windowrule = pin, title:^(Picture-in-Picture)$
+windowrule = float on, class:^(pavucontrol)$
+windowrule = float on, class:^(nm-connection-editor)$
+windowrule = float on, class:^(blueman-manager)$
+windowrule = float on, title:^(Picture-in-Picture)$
+windowrule = pin on, title:^(Picture-in-Picture)$
 EOF
 
 echo "=== waybar config + css ==="
