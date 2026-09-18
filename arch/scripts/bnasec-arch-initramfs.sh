@@ -8,7 +8,11 @@ R=$AIROOTFS
 STAGE=$AB/initramfs-stage
 KVER=$(ls $R/usr/lib/modules 2>/dev/null | grep -v extramodules | head -1)
 [ -n "$KVER" ] || { echo "FATAL: no kernel modules tree"; exit 1; }
-[ -f "$R/usr/bin/busybox" ] || { echo "FATAL: airootfs tree missing — unsquash airootfs.sfs first"; exit 1; }
+# busybox may live in /usr/bin (symlinked) or /usr/lib/initcpio (mkinitcpio-busybox)
+if [ ! -f "$R/usr/bin/busybox" ] && [ -f "$R/usr/lib/initcpio/busybox" ]; then
+  ln -sf ../lib/initcpio/busybox $R/usr/bin/busybox
+fi
+[ -f "$R/usr/bin/busybox" ] || { echo "FATAL: busybox missing in airootfs"; exit 1; }
 echo "kernel: $KVER"
 rm -rf $STAGE
 
