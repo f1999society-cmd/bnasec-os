@@ -56,6 +56,7 @@ ls $AB/arch-root/usr/bin/pacman && echo "pacman present"
 
 echo "=== 4) pacman.conf + hooks + keyring ==="
 cp $REPO/arch/tools/env.sh $AB/env.sh
+mkdir -p $AB/scripts && cp $REPO/arch/scripts/* $AB/scripts/
 cp $REPO/arch/tools/pacman.conf $AB/pacman.conf
 chmod 700 $AB/arch-root/etc/pacman.d/gnupg 2>/dev/null || true
 # keyring-init sources env.sh itself; invoke as a script:
