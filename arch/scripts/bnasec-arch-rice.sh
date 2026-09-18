@@ -172,11 +172,11 @@ bindm = $mod, mouse:272, movewindow
 bindm = $mod, mouse:273, resizewindow
 
 # --- window rules ---
-windowrule = float on, class:^(pavucontrol)$
-windowrule = float on, class:^(nm-connection-editor)$
-windowrule = float on, class:^(blueman-manager)$
-windowrule = float on, title:^(Picture-in-Picture)$
-windowrule = pin on, title:^(Picture-in-Picture)$
+windowrule = float on, match:class ^(pavucontrol)$
+windowrule = float on, match:class ^(nm-connection-editor)$
+windowrule = float on, match:class ^(blueman-manager)$
+windowrule = float on, match:title ^(Picture-in-Picture)$
+windowrule = pin on, match:title ^(Picture-in-Picture)$
 EOF
 
 echo "=== waybar config + css ==="
