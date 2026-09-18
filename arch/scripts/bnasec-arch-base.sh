@@ -31,7 +31,7 @@ batch desktop   hyprland waybar wofi kitty swww dunst fastfetch grim \
                 xdg-desktop-portal-hyprland xdg-desktop-portal-gtk \
                 wl-clipboard brightnessctl
 batch fonts     ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji \
-                papirus-icon-theme bibata-cursor-theme
+                papirus-icon-theme
 batch audio     pipewire wireplumber pipewire-pulse
 batch shell     zsh zsh-autosuggestions zsh-syntax-highlighting
 batch apps      firefox thunar tumbler gvfs
