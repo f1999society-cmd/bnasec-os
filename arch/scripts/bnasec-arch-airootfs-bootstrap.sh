@@ -36,8 +36,9 @@ echo "=== loader + glibc ==="
 cp -L $S/usr/lib/ld-linux-x86-64.so.2 $R/usr/lib/ 2>/dev/null || \
   cp -L $S/lib/ld-linux-x86-64.so.2 $R/usr/lib/
 cp -L $S/usr/lib/libc.so.6 $R/usr/lib/
-mkdir -p $R/lib64
-[ -e $R/lib64/ld-linux-x86-64.so.2 ] || ln -sf ../usr/lib/ld-linux-x86-64.so.2 $R/lib64/ld-linux-x86-64.so.2
+# lib64 MUST be a symlink (filesystem pkg ships /lib64 -> usr/lib; pacman can
+# never overwrite a real dir with a symlink — even with --overwrite)
+[ -e $R/lib64 ] || ln -sfn usr/lib $R/lib64
 
 echo "=== pacman + gpg family ==="
 for b in pacman gpg gpgv gpgconf gpgsm gpg-agent dirmngr gpg-connect-agent; do
