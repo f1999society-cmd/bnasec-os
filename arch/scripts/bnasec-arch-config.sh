@@ -9,6 +9,7 @@ R=$AIROOTFS
 w() { # write file with dirs:  w <path> [mode]
   local p="$R/$1"; shift
   mkdir -p "$(dirname "$p")"
+  rm -f "$p"
   cat > "$p"
   if [ -n "$1" ]; then chmod "$1" "$p"; fi
   return 0
@@ -72,6 +73,7 @@ mkdir -p $R/etc/systemd/system/multi-user.target.wants
 mkdir -p $R/etc/systemd/system/graphical.target.wants
 ln -sf /usr/lib/systemd/system/greetd.service $R/etc/systemd/system/graphical.target.wants/greetd.service
 mkdir -p $R/etc/systemd/system/multi-user.target.wants
+mkdir -p $R/etc/systemd/system/getty.target.wants
 ln -sf /usr/lib/systemd/system/getty@.service $R/etc/systemd/system/getty.target.wants/getty@tty1.service
 ls -la $R/etc/systemd/system/multi-user.target.wants/ | tail -2
 
