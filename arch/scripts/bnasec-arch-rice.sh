@@ -107,6 +107,7 @@ exec-once = awww-daemon --format xrgb
 exec-once = sleep 1 && bnasec-wallpaper
 exec-once = waybar
 exec-once = dunst
+exec-once = nm-applet
 exec-once = lxqt-policykit-agent
 exec-once = wl-paste --type text --watch cliphist store
 

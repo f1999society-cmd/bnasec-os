@@ -286,3 +286,23 @@ Work Log:
 Stage Summary:
 - arch-v1.0.0 release now carries exactly 2 assets: bnasec-arch-1.0.0-amd64.iso (1,651,257,344 B) + working .sha256; parts removed
 - Local verified copy kept at /home/z/my-project/arch-iso-join/bnasec-arch-1.0.0-amd64.iso
+
+---
+Task ID: 12-arch-v101-old-gpu-fix
+Agent: main
+Task: User booted v1.0.0 on old Dell: kitty (Super+Enter) silently crashed (old GPU, no GL 3.3); rescue boot was broken (greetd under multi-user.target + serial console stealing login). Build + ship v1.0.1 "perfect" edition. User: tools secondary, OS must just work.
+
+Work Log:
+- Diagnosed via user screenshots: desktop+bar+notifications rendered fine, only kitty died; multi-user rescue gave black screen (console=ttyS0 last in cmdline -> systemd-getty-generator put login on serial; plus NO getty@tty1 symlink in image; plus greetd in multi-user.target.wants)
+- Repo fixes (c0cc9f3 + follow-ups): greetd.service -> graphical.target.wants; explicit getty.target.wants/getty@tty1; foot as default $terminal + Catppuccin foot.ini; mkinitcpio-busybox added; iso.sh: v1.0.1 name + console=ttyS0 REMOVED from normal entries (kept on verbose/debug entry)
+- Sandbox surprises: airootfs (3.8G) survived reset but dotfile rice layer was gone -> re-ran rice.sh/rice2.sh/wallpapers.py into existing tree (packages intact, foot binary already present); glib schemas compiled via arch_run2 with ABSOLUTE host path (rootless chdir impossible)
+- Added xorg-xwayland + pavucontrol + network-manager-applet (pacman_ai), nm-applet exec-once, waybar already had custom/launcher+tray
+- Rebuilt initramfs -> squashfs (1,660,006,400 B) -> ISO v1.0.1: 1,696,133,120 B, sha256 e9da7b4e9e20aa01de8a7294b1332de3e3ca7427b3c2efbcd843d355ff94984e
+- QEMU verification (host limits discovered: 2 cores, 3.9GB RAM!): boot->greetd (F-bar shows start-hyprland session) OK; bna/bnasec auth -> desktop -> waybar with BNAsec launcher button OK (wallpaper renders in QEMU now); serial root login OK. Keybind process-proof ABANDONED: -smp 8 OOM (host 2 cores), detached setsid processes reaped between tool calls, curl --data-binary OOM on 1.7GB upload (anon-rss 2.98G)
+- Tooling lessons: QEMU -smp must be <=2, -m <=1024 on this host; big uploads MUST stream via http.client file-object body (scripts/stream-upload.py); single-call budget 600s
+- Release arch-v1.0.1 PUBLISHED: single ISO + sha256 (stream upload HTTP 201); release notes document all fixes; screenshots in arch/assets/screenshots-v101/
+
+Stage Summary:
+- v1.0.1 live: foot default (old-GPU safe), rescue boots fixed (real text login), serial-console bug gone, start-hyprland session, launcher button + nm-applet + pavucontrol + XWayland baked in
+- kitty retained as fallback; tools unchanged; persistence untouched
+- User must reflash + verify Super+Enter opens foot on the real Dell; then revoke GitHub token

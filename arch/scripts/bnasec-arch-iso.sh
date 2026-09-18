@@ -7,7 +7,7 @@ STAGE=$AB/initramfs-stage
 ISO=$AB/isostage
 KVER=$(ls $R/usr/lib/modules 2>/dev/null | grep -v extramodules | head -1)
 [ -n "$KVER" ] || KVER=7.2.6-arch2-1
-OUT=$AB/bnasec-arch-1.0.0-amd64.iso
+OUT=$AB/bnasec-arch-1.0.1-amd64.iso
 
 echo "=== 1) pack initramfs (newc cpio, zstd) ==="
 rm -f $STAGE/../initramfs-linux.img
@@ -58,11 +58,11 @@ set default=0
 set timeout=8
 
 menuentry "BNAsec Arch — Hyprland (persistent)" {
-    linux /boot/vmlinuz-linux quiet loglevel=3 console=tty0 console=ttyS0,115200 zswap.enabled=0 bnasec.persist=1 bnasec.label=BNASECARCH
+    linux /boot/vmlinuz-linux quiet loglevel=3 console=tty0 zswap.enabled=0 bnasec.persist=1 bnasec.label=BNASECARCH
     initrd /boot/initramfs-linux.img
 }
 menuentry "BNAsec Arch — RAM-only session (no persistence)" {
-    linux /boot/vmlinuz-linux quiet loglevel=3 console=tty0 console=ttyS0,115200 zswap.enabled=0 bnasec.persist=0 bnasec.label=BNASECARCH
+    linux /boot/vmlinuz-linux quiet loglevel=3 console=tty0 zswap.enabled=0 bnasec.persist=0 bnasec.label=BNASECARCH
     initrd /boot/initramfs-linux.img
 }
 menuentry "BNAsec Arch — verbose boot (debug)" {
