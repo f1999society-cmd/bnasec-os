@@ -269,3 +269,20 @@ Work Log:
 Stage Summary:
 - arch-v1.0.0 is LIVE and verified end-to-end: password login works, Hyprland rice renders (wallpaper+bar), apps run, zram active, persistence entry present. Remaining cosmetic: greeter screenshot black in QEMU (console-takeover artifact; works on real HW), wofi/firefox photos skipped (migration IPC artifact)
 - USER MUST REVOKE the GitHub token after downloading
+
+---
+Task ID: 11-arch-iso-single-file
+Agent: main
+Task: Replace split ISO parts on arch-v1.0.0 release with one single ISO file (user request: "i dont want parts")
+
+Work Log:
+- Sandbox reset had wiped arch-build dir; re-downloaded part-00 (891,289,600 B) + part-01 (759,967,744 B) from release via API (token auth, repo private)
+- cat part-00 part-01 > bnasec-arch-1.0.0-amd64.iso -> 1,651,257,344 bytes, sha256 ab12e524915117e430b9f8889ed8d991f1b87ba4dd543f4be9312edf893ee80f = byte-perfect match with published .sha256
+- Uploaded single ISO to release 391036871 via uploads.github.com: HTTP 201, 1.65GB in 110s (~15MB/s)
+- Deleted part-00, part-01 and old .sha256 (had build-machine path baked in, broke sha256sum -c); re-uploaded corrected .sha256 ("ab12e524...  bnasec-arch-1.0.0-amd64.iso", 94 B)
+- PATCHed release body: removed cat/join instructions, single-file flash flow (Rufus DD / Etcher / dd + sha256sum -c + 8GB+ stick note)
+- Note: nohup background upload is killed by tool-call shell teardown in this sandbox -> always upload in foreground with timeout 600000
+
+Stage Summary:
+- arch-v1.0.0 release now carries exactly 2 assets: bnasec-arch-1.0.0-amd64.iso (1,651,257,344 B) + working .sha256; parts removed
+- Local verified copy kept at /home/z/my-project/arch-iso-join/bnasec-arch-1.0.0-amd64.iso
