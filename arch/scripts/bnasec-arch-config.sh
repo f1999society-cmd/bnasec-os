@@ -32,6 +32,15 @@ EOF
 # machine-id (fixed so journald is stable across boots of the same live media)
 [ -s $R/etc/machine-id ] || (openssl rand -hex 16 | tr -d '\n' > $R/etc/machine-id; echo >> $R/etc/machine-id)
 
+echo "=== 1b) pacman mirrorlist (live image MUST ship servers — fixes 'no server configured for repository') ==="
+mkdir -p $R/etc/pacman.d
+w etc/pacman.d/mirrorlist 644 <<'EOF'
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://fastly.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch
+Server = https://mirror.leaseweb.net/archlinux/$repo/os/$arch
+EOF
+
 echo "=== 2) apply package sysusers + tmpfiles ==="
 arch_run2 $R usr/bin/systemd-sysusers --root $R 2>&1 | tail -2 || true
 arch_run2 $R usr/bin/systemd-tmpfiles --root $R --create 2>&1 | grep -vE "line|Warning" | tail -2 || true

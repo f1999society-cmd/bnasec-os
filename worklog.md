@@ -328,3 +328,16 @@ Stage Summary:
 - v1.0.2 published with every tour-visible defect fixed; boot->login->desktop->foot(clean)->fastfetch->wofi(icons)->thunar->rescue tty1 login->root nmap all screenshot-verified
 - Repo HEAD: v1.0.2f series commits pushed; worklog updated
 - Sandbox rules added: no detached background processes across tool calls; stream large uploads with -T; QEMU sendkey unreliable under TCG load
+
+---
+Task ID: 14-mirrorfix
+Agent: Super Z (main)
+Task: User reported "no server configured for repository" when running update on the live stick — shipped airootfs has empty /etc/pacman.d/mirrorlist
+
+Work Log:
+- Verified no arch build script ever wrote /etc/pacman.d/mirrorlist into the airootfs (build used arch/tools/pacman.conf host-side only; shipped stock pacman.conf Include found zero servers)
+- Patched bnasec-arch-config.sh: new section 1b writes /etc/pacman.d/mirrorlist (geo + fastly pkgbuild + rackspace + leaseweb) into every future image
+- Delivered user the one-time on-stick fix (sudo tee mirrorlist lines + update); persists via persistence partition, no reflash needed
+
+Stage Summary:
+- Future ISOs ship working pacman mirrors; current user stick fixed with a 30s command
