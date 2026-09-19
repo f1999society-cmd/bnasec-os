@@ -341,3 +341,16 @@ Work Log:
 
 Stage Summary:
 - Future ISOs ship working pacman mirrors; current user stick fixed with a 30s command
+
+---
+Task ID: 15-ca-trust-fix
+Agent: Super Z (main)
+Task: User reported pacman TLS failure "error adding trust anchors from file: /etc/ssl/certs/ca-certificates.crt" — rootless build skips ca-certificates-utils hooks so the CA bundle never materialized
+
+Work Log:
+- Root cause: same family as mime/desktop/icon hooks (v1.0.2 fix) — the rootless build disables pacman hook scripts, so update-ca-trust / trust extract-compat never ran in the airootfs
+- Patched bnasec-arch-config.sh: new section 17b runs update-ca-trust + trust extract-compat via arch_run2 and materializes a REAL-FILE /etc/ssl/certs/ca-certificates.crt from extracted/pem/tls-ca-bundle.pem (symlink-proof under the shim)
+- User fix delivered: sudo update-ca-trust (regenerates bundles as real root on the live overlay), then update
+
+Stage Summary:
+- Future ISOs ship a working CA store; user's current stick fixed with one command

@@ -223,6 +223,14 @@ arch_run2 $R usr/bin/gtk-update-icon-cache -f -t $R/usr/share/icons/Adwaita 2>&1
 arch_run2 $R usr/bin/gtk-update-icon-cache -f -t $R/usr/share/icons/hicolor 2>&1 | tail -1 || true
 test -s $R/usr/share/icons/Adwaita/icon-theme.cache && echo "  icon caches OK"
 
+echo "=== 17b) CA trust bundles (rootless build skips hooks — guest TLS failed with 'error adding trust anchors') ==="
+arch_run2 $R usr/bin/update-ca-trust 2>&1 | tail -1 || true
+arch_run2 $R usr/bin/trust extract-compat 2>&1 | tail -1 || true
+mkdir -p $R/etc/ssl/certs
+rm -f $R/etc/ssl/certs/ca-certificates.crt
+BUNDLE=$R/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+if [ -s "$BUNDLE" ]; then cat "$BUNDLE" > $R/etc/ssl/certs/ca-certificates.crt; echo "  CA bundle OK ($(wc -c < $R/etc/ssl/certs/ca-certificates.crt) bytes)"; else echo "  WARN: extracted pem missing"; fi
+
 echo "=== 18) preinstall gitstatusd (p10k otherwise downloads from GitHub on first shell) ==="
 GDIR=$R/usr/share/zsh-theme-powerlevel10k/gitstatus
 if [ -d "$GDIR" ] && [ ! -e "$GDIR/usrbin/gitstatusd-linux-x86_64" ]; then
