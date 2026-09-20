@@ -368,3 +368,18 @@ Work Log:
 Stage Summary:
 - Decompressed image size (5.33 GiB) probed and recorded — 8 GB stick sufficient, first boot auto-grows
 - No build changes; support turn only
+
+---
+Task ID: 12-screenshot-delivery
+Agent: main
+Task: User asked "send more screenshots while using it" + "which OS are the screenshots from"
+
+Work Log:
+- Answered honestly: all screenshots come from the actual built images booting in QEMU VMs on the Debian build sandbox — never real hardware, never mocked
+- Rescued 9 archived PNGs from bnasec-os + ml4w-arch-usb repos via GitHub contents/blob API; visually audited each with image rendering
+- Found 2 mislabeled/junk captures (wofi shot = bare wallpaper, kitty shot = empty terminal frame) — excluded
+- Delivered 7 verified shots + README.txt index to /home/z/my-project/download/screenshots/ with honest per-file labels (exact v2.15.1 img shots, arch ISO desktop/terminal, old-build terminal errors flagged as fixed, Debian edition separated)
+- Live-capture feasibility check: qemu-system-x86_64 NOT installed post-reset, /dev/kvm absent (TCG only), host RAM available only 526 MB — live VM re-shoot NOT feasible this session; offered as follow-up
+
+Stage Summary:
+- download/screenshots/ = 7 verified real screenshots + index; no build changes; repo pushed through task 11
