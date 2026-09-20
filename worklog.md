@@ -403,3 +403,17 @@ Work Log:
 
 Stage Summary:
 - Released image PROVEN GOOD (BIOS/UEFI/8GB-grow); user's stick needs verified re-flash; release checksums now truthful and verifiable end-to-end
+
+---
+Task ID: 12b-pipeline-verify
+Agent: main
+Task: Verify user's curl|zstd|dd streaming flash command
+
+Work Log:
+- Plain release URL is publicly accessible (200 + signed URL, no auth)
+- Ran EXACT user pipeline (curl -L URL | zstd -dc | dd of=file bs=4M): 5,720,014,848 bytes in 253.8s (~22.5 MB/s)
+- Output sha256 = a1c54abb749c0e73cd1054c331c19759e82f25920a072cc95a6292d95ea7512e — EXACT match with pristine release image
+- Recommended post-flash verify: head -c 5720014848 /dev/sdX | sha256sum
+
+Stage Summary:
+- User streaming command VERIFIED byte-exact end-to-end; no token needed while repo is public
