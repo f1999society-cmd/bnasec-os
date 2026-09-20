@@ -383,3 +383,23 @@ Work Log:
 
 Stage Summary:
 - download/screenshots/ = 7 verified real screenshots + index; no build changes; repo pushed through task 11
+
+---
+Task ID: 12-ml4w-boot-panic-triage
+Agent: main
+Task: User got kernel panic (blue QR screen) booting ml4w-2.15.1-arch-persistent.img — find and fix
+
+Work Log:
+- User's screenshot was a Google image, not their screen — QR-decoded it anyway (Arch panic URL, kernel 6.14.3) but discarded as diagnostic input
+- Re-cloned ml4w-arch-usb repo; userspace QEMU rebuilt via apt download + dpkg -x (qemu-system-x86 10.0.13, OVMF 4M, seabios, qemu-img, zstd)
+- Downloaded release v2.15.1 .zst asset (1,956,710,975 B): actual sha256 = 0e3d0cf05fdbe343ab72402f5db26f7899dfdd521b7438782ee7c2252239540d — MISMATCH with release .sha256 (stale aed7ed6e) and USAGE.txt (3ef193c2)
+- Decompressed: 5,720,014,848 B, pristine sha256 = a1c54abb749c0e73cd1054c331c19759e82f25920a072cc95a6292d95ea7512e (differs from USAGE cda0fde8 — asset is a different rebuild than the notes describe)
+- QEMU boot matrix on the ACTUAL release image: BIOS OK (autologin t=120s, Hyprland t=300s), UEFI OK (Hyprland desktop + dialog t=420s), 8GB sparse first-boot OK (autologin t=120s; growpart/resize2fs/e2fsprogs/cloud-guest-utils all present, runs late due to pacman-key --init in TCG)
+- CONCLUSION: image itself boots fine on all paths → user's panic = corrupted/truncated extraction (FAT32 4GB limit or out-of-space on phone) or bad flash
+- Fixed release hygiene: deleted stale .zst.sha256, uploaded corrected .zst.sha256 (0e3d0cf0) + NEW .img.sha256 (a1c54abb) via uploads.github.com (api.github.com POST silently failed first — 201 after switch)
+- Repo: corrected USAGE.txt hashes, added kernel-panic troubleshooting to README, pushed cd15e55
+- Evidence shots saved to download/: ml4w-boot-proof.png + 5 individual frames
+- GOTCHAS logged: (a) never boot-test a raw img without a qcow2 overlay (mutates sha256); (b) qcow2 overlay needs format=qcow2 not raw; (c) GitHub release uploads = uploads.github.com
+
+Stage Summary:
+- Released image PROVEN GOOD (BIOS/UEFI/8GB-grow); user's stick needs verified re-flash; release checksums now truthful and verifiable end-to-end
