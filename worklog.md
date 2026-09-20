@@ -354,3 +354,17 @@ Work Log:
 
 Stage Summary:
 - Future ISOs ship a working CA store; user's current stick fixed with one command
+
+---
+Task ID: 11-phone-download-flash-support
+Agent: main
+Task: User downloading ml4w-2.15.1-arch-persistent.img.zst on phone — how to get from .zst to bootable USB
+
+Work Log:
+- Located the artifact: repo ml4w-arch-usb, release v2.15.1, asset ml4w-2.15.1-arch-persistent.img.zst = 1,956,710,975 bytes (1.82 GiB), sha256 aed7ed6e...4414f4b1
+- Wrote scripts/zst_size_probe.py: parses zstd frame header (FCS field) via authenticated Range request (206) — decompressed image = 5,720,014,848 bytes = 5.33 GiB
+- Guidance delivered: (1) never rename .zst -> .img (compressed bytes, flasher would write garbage); (2) phone-only path = EtchDroid (native zstd, decompresses on the fly); (3) user's chosen path = copy .zst to PC via MTP, extract with 7-Zip / zstd -d, flash with Rufus DD / balenaEtcher, boot from USB (Secure Boot off); warned phone extraction needs ~7.2 GB free (zst+img) so PC-side extraction is the right call
+
+Stage Summary:
+- Decompressed image size (5.33 GiB) probed and recorded — 8 GB stick sufficient, first boot auto-grows
+- No build changes; support turn only
